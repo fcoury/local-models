@@ -1,0 +1,455 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+MODEL_HOME="${MODEL_HOME:-$HOME/models}"
+STATE_HOME="${LOCAL_MODEL_STATE_HOME:-$HOME/Library/Application Support/local-models}"
+LOG_DIR="$STATE_HOME/logs"
+PID_DIR="$STATE_HOME/pids"
+
+mkdir -p "$LOG_DIR" "$PID_DIR"
+
+models() {
+  cat <<'EOF'
+qwen3.8-27b
+qwen3.6-35b-a3b
+deepseek-v4-flash
+minimax-h3-standard
+minimax-h3-heretic
+minimax-h3-comfy
+minimax-h3-bf16
+minimax-music3
+mererun-ltx-2.3
+mererun-qwen3-coder-next
+mererun-gemma-3-12b
+mererun-z-image-turbo
+EOF
+}
+
+label() {
+  case "$1" in
+    qwen3.8-27b) echo "Qwen3.8 27B Q8 (llama.cpp)" ;;
+    qwen3.6-35b-a3b) echo "Qwen3.6 35B A3B OptiQ 4-bit (MLX)" ;;
+    deepseek-v4-flash) echo "DeepSeek V4 Flash IQ2XXS 0731 (DS4)" ;;
+    minimax-h3-standard) echo "MiniMax H3 standard 4-bit (MLX)" ;;
+    minimax-h3-heretic) echo "MiniMax H3 Ultra-Heretic TE8 4-bit (MLX)" ;;
+    minimax-h3-comfy) echo "MiniMax H3 ComfyUI int8 assets" ;;
+    minimax-h3-bf16) echo "MiniMax H3 BF16 reference assets" ;;
+    minimax-music3) echo "MiniMax Music3 assets" ;;
+    mererun-ltx-2.3) echo "LTX 2.3 MLX (MereRun managed)" ;;
+    mererun-qwen3-coder-next) echo "Qwen3 Coder Next Q4_K_M (MereRun managed)" ;;
+    mererun-gemma-3-12b) echo "Gemma 3 12B 4-bit (MereRun managed)" ;;
+    mererun-z-image-turbo) echo "Z-Image Turbo 4-bit (MereRun managed)" ;;
+    *) return 1 ;;
+  esac
+}
+
+kind() {
+  case "$1" in
+    qwen3.8-27b|qwen3.6-35b-a3b|deepseek-v4-flash|minimax-h3-standard|minimax-h3-heretic)
+      echo service
+      ;;
+    *)
+      echo asset
+      ;;
+  esac
+}
+
+port() {
+  case "$1" in
+    qwen3.8-27b) echo 8080 ;;
+    qwen3.6-35b-a3b) echo 8081 ;;
+    deepseek-v4-flash) echo 8000 ;;
+    minimax-h3-standard) echo 11234 ;;
+    minimax-h3-heretic) echo 11235 ;;
+    *) return 1 ;;
+  esac
+}
+
+model_path() {
+  case "$1" in
+    qwen3.8-27b) echo "$MODEL_HOME/aliases/qwen3.8-27b" ;;
+    qwen3.6-35b-a3b) echo "$MODEL_HOME/aliases/qwen3.6-35b-a3b-mlx" ;;
+    deepseek-v4-flash) echo "$MODEL_HOME/aliases/deepseek-v4-flash-current.gguf" ;;
+    minimax-h3-standard) echo "$MODEL_HOME/mlx/minimax-h3/standard-4bit" ;;
+    minimax-h3-heretic) echo "$MODEL_HOME/mlx/minimax-h3/heretic-4bit" ;;
+    minimax-h3-comfy) echo "$MODEL_HOME/diffusers/minimax/h3-comfy" ;;
+    minimax-h3-bf16) echo "$MODEL_HOME/diffusers/minimax/h3-bf16-reference" ;;
+    minimax-music3) echo "$MODEL_HOME/diffusers/minimax/music3" ;;
+    mererun-ltx-2.3) echo "$MODEL_HOME/managed/mererun/snapshots/models/dgrauet/ltx-2.3-mlx" ;;
+    mererun-qwen3-coder-next) echo "$MODEL_HOME/managed/mererun/snapshots/models/Qwen/Qwen3-Coder-Next-GGUF" ;;
+    mererun-gemma-3-12b) echo "$MODEL_HOME/managed/mererun/snapshots/models/mlx-community/gemma-3-12b-it-4bit" ;;
+    mererun-z-image-turbo) echo "$MODEL_HOME/managed/mererun/snapshots/models/filipstrand/Z-Image-Turbo-mflux-4bit" ;;
+    *) return 1 ;;
+  esac
+}
+
+known_model() {
+  label "$1" >/dev/null 2>&1
+}
+
+ready() {
+  local id="$1"
+  case "$id" in
+    qwen3.8-27b)
+      [[ -f "$MODEL_HOME/aliases/qwen3.8-27b/model.gguf" && -f "$MODEL_HOME/aliases/qwen3.8-27b/mmproj.gguf" ]]
+      ;;
+    deepseek-v4-flash)
+      [[ -f "$MODEL_HOME/aliases/deepseek-v4-flash-current.gguf" && -x "$HOME/code/ds4/ds4-server" ]]
+      ;;
+    qwen3.6-35b-a3b)
+      [[ -f "$MODEL_HOME/aliases/qwen3.6-35b-a3b-mlx/config.json" && -x "$MODEL_HOME/runtime/mlx-lm-venv/bin/mlx_lm.server" ]]
+      ;;
+    minimax-h3-standard|minimax-h3-heretic)
+      [[ -f "$(model_path "$id")/config.json" && -x "$HOME/code/minimax-h3-mlx/runtime/mlx-serve" ]]
+      ;;
+    *)
+      [[ -e "$(model_path "$id")" ]]
+      ;;
+  esac
+}
+
+listening() {
+  local id="$1"
+  local service_port
+  service_port="$(port "$id")"
+  lsof -nP -iTCP:"$service_port" -sTCP:LISTEN >/dev/null 2>&1
+}
+
+healthy() {
+  local id="$1"
+  local service_port
+  service_port="$(port "$id")"
+  case "$id" in
+    qwen3.8-27b)
+      curl -fsS --max-time 2 "http://127.0.0.1:$service_port/health" >/dev/null 2>&1
+      ;;
+    *)
+      curl -fsS --max-time 2 "http://127.0.0.1:$service_port/v1/models" >/dev/null 2>&1
+      ;;
+  esac
+}
+
+service_label() {
+  local id="${1//./_}"
+  echo "com.fcoury.local-models.$id"
+}
+
+service_loaded() {
+  launchctl print "gui/$(id -u)/$(service_label "$1")" >/dev/null 2>&1
+}
+
+service_pid() {
+  launchctl print "gui/$(id -u)/$(service_label "$1")" 2>/dev/null |
+    sed -n 's/^[[:space:]]*pid = \([0-9][0-9]*\)$/\1/p' |
+    head -n 1
+}
+
+run_model() {
+  local id="$1"
+  case "$id" in
+    qwen3.8-27b)
+      exec llama-server \
+        --model "$MODEL_HOME/aliases/qwen3.8-27b/model.gguf" \
+        --mmproj "$MODEL_HOME/aliases/qwen3.8-27b/mmproj.gguf" \
+        --alias 'ggml-org/Qwen3.8-27B-GGUF:Q8_0' \
+        --gpu-layers all \
+        --flash-attn on \
+        --ctx-size 131072 \
+        --parallel 1 \
+        --host 127.0.0.1 \
+        --port 8080 \
+        --cors-origins localhost \
+        --temp 1.0 \
+        --top-p 0.95 \
+        --top-k 20 \
+        --min-p 0 \
+        --reasoning on \
+        --reasoning-preserve \
+        --image-min-tokens 1024 \
+        --chat-template-kwargs '{"reasoning_effort":"medium"}'
+      ;;
+    qwen3.6-35b-a3b)
+      export HF_HOME="$MODEL_HOME/mlx/qwen/qwen3.6-35b-a3b/hf-home"
+      export HF_HUB_CACHE="$HF_HOME/hub"
+      exec "$MODEL_HOME/runtime/mlx-lm-venv/bin/mlx_lm.server" \
+        --model 'mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit' \
+        --host 127.0.0.1 \
+        --port 8081 \
+        --max-tokens 2048 \
+        --temp 0.6 \
+        --top-p 0.95 \
+        --chat-template-args '{"enable_thinking":false}'
+      ;;
+    deepseek-v4-flash)
+      local ds4_root="$HOME/code/ds4"
+      local ds4_kv_dir="${TMPDIR:-/tmp}/local-models-ds4-kv"
+      mkdir -p "$ds4_kv_dir"
+      cd "$ds4_root"
+      exec "$ds4_root/ds4-server" \
+        --backend metal \
+        --model "$MODEL_HOME/aliases/deepseek-v4-flash-current.gguf" \
+        --ctx 250000 \
+        --host 127.0.0.1 \
+        --port 8000 \
+        --kv-disk-dir "$ds4_kv_dir" \
+        --kv-disk-space-mb 8192
+      ;;
+    minimax-h3-standard|minimax-h3-heretic)
+      exec "$HOME/code/minimax-h3-mlx/runtime/mlx-serve" \
+        --model "$(model_path "$id")" \
+        --serve \
+        --host 127.0.0.1 \
+        --port "$(port "$id")" \
+        --timeout 0
+      ;;
+    *)
+      echo "$id is an asset collection and does not have a standalone server." >&2
+      exit 2
+      ;;
+  esac
+}
+
+status_one() {
+  local id="$1"
+  local state
+  if [[ "$(kind "$id")" == asset ]]; then
+    if ready "$id"; then
+      case "$id" in
+        mererun-*) state=managed ;;
+        *) state=ready ;;
+      esac
+    else
+      state=missing
+    fi
+    printf '%-29s %-9s %s\n' "$id" "$state" "$(model_path "$id")"
+    return
+  fi
+
+  if service_loaded "$id"; then
+    local pid
+    pid="$(service_pid "$id")"
+    if healthy "$id"; then
+      state=running
+    elif [[ -n "$pid" ]]; then
+      state=starting
+    else
+      state=failed
+    fi
+    printf '%-29s %-9s pid=%s port=%s\n' "$id" "$state" "${pid:-unknown}" "$(port "$id")"
+    return
+  fi
+
+  if listening "$id"; then
+    printf '%-29s %-9s port=%s (not managed by modelctl)\n' "$id" external "$(port "$id")"
+  elif ready "$id"; then
+    printf '%-29s %-9s port=%s\n' "$id" stopped "$(port "$id")"
+  else
+    printf '%-29s %-9s %s\n' "$id" missing "$(model_path "$id")"
+  fi
+}
+
+start_model() {
+  local id="$1"
+  local log_file="$LOG_DIR/$id.log"
+  local launch_label
+  local self
+
+  if [[ "$(kind "$id")" != service ]]; then
+    echo "$id is an asset collection and cannot be started." >&2
+    exit 2
+  fi
+  if ! ready "$id"; then
+    echo "Model or runtime is incomplete: $(model_path "$id")" >&2
+    exit 1
+  fi
+  if listening "$id"; then
+    echo "$id already has a listener on port $(port "$id")."
+    status_one "$id"
+    return
+  fi
+
+  launch_label="$(service_label "$id")"
+  if service_loaded "$id"; then
+    if [[ -n "$(service_pid "$id")" ]]; then
+      echo "$id already has a loaded launch service."
+      status_one "$id"
+      return
+    fi
+    launchctl remove "$launch_label" >/dev/null 2>&1 || true
+  fi
+
+  self="$(command -v modelctl 2>/dev/null || true)"
+  if [[ -z "$self" ]]; then self="$0"; fi
+  if [[ "$self" != /* ]]; then self="$PWD/$self"; fi
+
+  launchctl submit \
+    -l "$launch_label" \
+    -o "$log_file" \
+    -e "$log_file" \
+    -- /usr/bin/env \
+      "MODEL_HOME=$MODEL_HOME" \
+      "LOCAL_MODEL_STATE_HOME=$STATE_HOME" \
+      "PATH=$PATH" \
+      "$self" __run "$id"
+
+  local empty_pid_checks=0
+  for _ in $(seq 1 45); do
+    if healthy "$id"; then
+      echo "Started $id on http://127.0.0.1:$(port "$id") (PID $(service_pid "$id"))"
+      echo "Log: $log_file"
+      return
+    fi
+    if ! service_loaded "$id"; then
+      echo "$id exited during startup. Recent log output:" >&2
+      tail -40 "$log_file" >&2 || true
+      exit 1
+    fi
+    if [[ -z "$(service_pid "$id")" ]]; then
+      empty_pid_checks=$((empty_pid_checks + 1))
+      if (( empty_pid_checks >= 5 )); then
+        launchctl remove "$launch_label" >/dev/null 2>&1 || true
+        echo "$id exited during startup. Recent log output:" >&2
+        tail -40 "$log_file" >&2 || true
+        exit 1
+      fi
+    else
+      empty_pid_checks=0
+    fi
+    sleep 1
+  done
+
+  echo "$id is still starting in the background (PID $(service_pid "$id"))."
+  echo "Check with: modelctl status $id"
+  echo "Log: $log_file"
+}
+
+stop_model() {
+  local id="$1"
+  local launch_label
+  launch_label="$(service_label "$id")"
+
+  if ! service_loaded "$id"; then
+    if listening "$id"; then
+      echo "$id is running outside modelctl; refusing to stop an unmanaged process." >&2
+      exit 1
+    fi
+    echo "$id is not running."
+    return
+  fi
+
+  launchctl remove "$launch_label"
+  for _ in $(seq 1 15); do
+    if ! service_loaded "$id" && ! listening "$id"; then
+      echo "Stopped $id."
+      return
+    fi
+    sleep 1
+  done
+
+  echo "$id did not stop after 15 seconds." >&2
+  exit 1
+}
+
+doctor() {
+  local failures=0
+  for command_name in curl lsof; do
+    if ! command -v "$command_name" >/dev/null 2>&1; then
+      echo "missing command: $command_name"
+      failures=$((failures + 1))
+    fi
+  done
+  if ! command -v llama-server >/dev/null 2>&1; then
+    echo "missing command: llama-server"
+    failures=$((failures + 1))
+  fi
+
+  while IFS= read -r id; do
+    if ready "$id"; then
+      echo "ok      $id"
+    else
+      echo "missing $id -> $(model_path "$id")"
+      failures=$((failures + 1))
+    fi
+  done < <(models)
+
+  if (( failures > 0 )); then
+    echo "$failures check(s) failed." >&2
+    exit 1
+  fi
+  echo "All model checks passed."
+}
+
+usage() {
+  cat <<'EOF'
+Usage: modelctl COMMAND [MODEL]
+
+Commands:
+  list                 Show all installed model services and assets
+  status [MODEL]       Show all statuses, or one model's status
+  start MODEL          Start a model server in the background
+  run MODEL            Run a model server in the foreground
+  stop MODEL           Stop a server started by modelctl
+  logs MODEL           Follow a model server log
+  path MODEL           Print the canonical model path
+  doctor               Validate runtimes, weights, and managed links
+EOF
+}
+
+command_name="${1:-}"
+case "$command_name" in
+  list)
+    printf '%-29s %-9s %s\n' MODEL STATUS LOCATION
+    while IFS= read -r id; do status_one "$id"; done < <(models)
+    ;;
+  status)
+    if [[ -n "${2:-}" ]]; then
+      known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
+      status_one "$2"
+    else
+      while IFS= read -r id; do status_one "$id"; done < <(models)
+    fi
+    ;;
+  start)
+    [[ -n "${2:-}" ]] || { usage >&2; exit 2; }
+    known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
+    start_model "$2"
+    ;;
+  run)
+    [[ -n "${2:-}" ]] || { usage >&2; exit 2; }
+    known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
+    ready "$2" || { echo "Model or runtime is incomplete: $(model_path "$2")" >&2; exit 1; }
+    run_model "$2"
+    ;;
+  stop)
+    [[ -n "${2:-}" ]] || { usage >&2; exit 2; }
+    known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
+    [[ "$(kind "$2")" == service ]] || { echo "$2 is not a service." >&2; exit 2; }
+    stop_model "$2"
+    ;;
+  logs)
+    [[ -n "${2:-}" ]] || { usage >&2; exit 2; }
+    known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
+    touch "$LOG_DIR/$2.log"
+    exec tail -f "$LOG_DIR/$2.log"
+    ;;
+  path)
+    [[ -n "${2:-}" ]] || { usage >&2; exit 2; }
+    known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
+    model_path "$2"
+    ;;
+  doctor)
+    doctor
+    ;;
+  __run)
+    [[ -n "${2:-}" ]] || exit 2
+    run_model "$2"
+    ;;
+  help|-h|--help|'')
+    usage
+    ;;
+  *)
+    echo "Unknown command: $command_name" >&2
+    usage >&2
+    exit 2
+    ;;
+esac

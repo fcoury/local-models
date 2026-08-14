@@ -1,0 +1,114 @@
+version = 1
+model_home = "~/models"
+
+[[models]]
+id = "qwen3.8-27b"
+name = "Qwen3.8 27B Q8"
+format = "GGUF"
+runner = "llama.cpp"
+path = "aliases/qwen3.8-27b"
+port = 8080
+status = "ready"
+consumer = "Qwen Code"
+
+[[models]]
+id = "qwen3.6-35b-a3b"
+name = "Qwen3.6 35B A3B OptiQ 4-bit"
+format = "MLX"
+runner = "mlx-lm"
+path = "mlx/qwen/qwen3.6-35b-a3b"
+port = 8081
+status = "ready"
+
+[[models]]
+id = "deepseek-v4-flash"
+name = "DeepSeek V4 Flash IQ2XXS 0731"
+format = "GGUF"
+runner = "ds4"
+path = "aliases/deepseek-v4-flash-current.gguf"
+port = 8000
+status = "ready"
+notes = "The older same-sized pre-0731 revision is retained beside the selected revision."
+
+[[models]]
+id = "minimax-h3-standard"
+name = "MiniMax H3 standard 4-bit"
+format = "MLX"
+runner = "mlx-serve"
+path = "mlx/minimax-h3/standard-4bit"
+port = 11234
+status = "ready"
+
+[[models]]
+id = "minimax-h3-heretic"
+name = "MiniMax H3 Ultra-Heretic TE8 4-bit"
+format = "MLX"
+runner = "mlx-serve"
+path = "mlx/minimax-h3/heretic-4bit"
+port = 11235
+status = "ready"
+
+[[models]]
+id = "minimax-h3-comfy"
+name = "MiniMax H3 ComfyUI int8 assets"
+format = "safetensors"
+runner = "ComfyUI"
+path = "diffusers/minimax/h3-comfy"
+status = "ready"
+
+[[models]]
+id = "minimax-h3-bf16"
+name = "MiniMax H3 BF16 reference assets"
+format = "safetensors"
+runner = "h3.c"
+path = "diffusers/minimax/h3-bf16-reference"
+status = "ready"
+
+[[models]]
+id = "minimax-music3"
+name = "MiniMax Music3"
+format = "safetensors"
+runner = "music3.c"
+path = "diffusers/minimax/music3"
+status = "ready"
+
+[[models]]
+id = "mererun-ltx-2.3"
+name = "LTX 2.3 MLX"
+format = "MLX"
+runner = "MereRun"
+path = "managed/mererun/snapshots/models/dgrauet/ltx-2.3-mlx"
+status = "managed"
+
+[[models]]
+id = "mererun-qwen3-coder-next"
+name = "Qwen3 Coder Next Q4_K_M"
+format = "GGUF"
+runner = "MereRun"
+path = "managed/mererun/snapshots/models/Qwen/Qwen3-Coder-Next-GGUF"
+status = "managed"
+
+[[models]]
+id = "mererun-gemma-3-12b"
+name = "Gemma 3 12B 4-bit"
+format = "MLX"
+runner = "MereRun"
+path = "managed/mererun/snapshots/models/mlx-community/gemma-3-12b-it-4bit"
+status = "managed"
+
+[[models]]
+id = "mererun-z-image-turbo"
+name = "Z-Image Turbo 4-bit"
+format = "MLX"
+runner = "MereRun"
+path = "managed/mererun/snapshots/models/filipstrand/Z-Image-Turbo-mflux-4bit"
+status = "managed"
+
+[[models]]
+id = "thinkingcap-qwen3.6-27b"
+name = "ThinkingCap Qwen3.6 27B Q8"
+format = "GGUF"
+runner = "llama.cpp"
+path = "gguf/qwen/thinkingcap-qwen3.6-27b"
+status = "not-installed"
+notes = "The incomplete download was removed; use ~/code/qwen3.6-thinkingcap/download-model to install it centrally."

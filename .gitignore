@@ -1,0 +1,5 @@
+*.log
+*.pid
+*.local
+cleanup-*.md
+.DS_Store
