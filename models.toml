@@ -121,3 +121,14 @@ runner = "Meta agentic-fundamentals"
 path = "llm/meta/muse-glimmer-30b-bf16"
 status = "ready"
 notes = "Meta's in-process reference agent loop; use modelctl run rather than modelctl start because this profile is not a server."
+
+[[models]]
+id = "muse-glimmer-30b-server"
+name = "Muse Glimmer 30B dynamic Q4_K_XL"
+format = "GGUF"
+runner = "llama.cpp"
+path = "gguf/meta/muse-glimmer-30b"
+port = 8082
+status = "ready"
+consumer = "Pi, Qwen Code, OpenCode, and other OpenAI-compatible harnesses"
+notes = "Official dynamic quant plus vision projector, served as muse-glimmer with 131072 context and one slot."

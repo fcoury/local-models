@@ -26,6 +26,7 @@ mererun-qwen3-coder-next
 mererun-gemma-3-12b
 mererun-z-image-turbo
 muse-glimmer-30b
+muse-glimmer-30b-server
 EOF
 }
 
@@ -44,13 +45,14 @@ label() {
     mererun-gemma-3-12b) echo "Gemma 3 12B 4-bit (MereRun managed)" ;;
     mererun-z-image-turbo) echo "Z-Image Turbo 4-bit (MereRun managed)" ;;
     muse-glimmer-30b) echo "Muse Glimmer 30B BF16 reference harness" ;;
+    muse-glimmer-30b-server) echo "Muse Glimmer 30B dynamic Q4_K_XL (llama.cpp)" ;;
     *) return 1 ;;
   esac
 }
 
 kind() {
   case "$1" in
-    qwen3.8-27b|qwen3.6-35b-a3b|deepseek-v4-flash|minimax-h3-standard|minimax-h3-heretic)
+    qwen3.8-27b|qwen3.6-35b-a3b|deepseek-v4-flash|minimax-h3-standard|minimax-h3-heretic|muse-glimmer-30b-server)
       echo service
       ;;
     muse-glimmer-30b)
@@ -69,6 +71,7 @@ port() {
     deepseek-v4-flash) echo 8000 ;;
     minimax-h3-standard) echo 11234 ;;
     minimax-h3-heretic) echo 11235 ;;
+    muse-glimmer-30b-server) echo 8082 ;;
     *) return 1 ;;
   esac
 }
@@ -88,6 +91,7 @@ model_path() {
     mererun-gemma-3-12b) echo "$MODEL_HOME/managed/mererun/snapshots/models/mlx-community/gemma-3-12b-it-4bit" ;;
     mererun-z-image-turbo) echo "$MODEL_HOME/managed/mererun/snapshots/models/filipstrand/Z-Image-Turbo-mflux-4bit" ;;
     muse-glimmer-30b) echo "$MODEL_HOME/llm/meta/muse-glimmer-30b-bf16" ;;
+    muse-glimmer-30b-server) echo "$MODEL_HOME/gguf/meta/muse-glimmer-30b" ;;
     *) return 1 ;;
   esac
 }
@@ -119,6 +123,11 @@ ready() {
         -x "$MUSE_GLIMMER_HARNESS_VENV/bin/python" &&
         -f "$MUSE_GLIMMER_HARNESS_DIR/run_agent.py" &&
         -f "$MUSE_GLIMMER_HARNESS_DIR/response_parser.py" ]]
+      ;;
+    muse-glimmer-30b-server)
+      [[ -f "$(model_path "$id")/Muse-Glimmer-30B-KQuant-Dynamic-Q4_K_XL.gguf" &&
+        -f "$(model_path "$id")/mmproj-Muse-Glimmer-30B-Q4_K_M.gguf" &&
+        -x "$(command -v llama-server 2>/dev/null)" ]]
       ;;
     *)
       [[ -e "$(model_path "$id")" ]]
@@ -220,6 +229,23 @@ run_model() {
         --host 127.0.0.1 \
         --port "$(port "$id")" \
         --timeout 0
+      ;;
+    muse-glimmer-30b-server)
+      exec llama-server \
+        --model "$(model_path "$id")/Muse-Glimmer-30B-KQuant-Dynamic-Q4_K_XL.gguf" \
+        --mmproj "$(model_path "$id")/mmproj-Muse-Glimmer-30B-Q4_K_M.gguf" \
+        --alias muse-glimmer \
+        --gpu-layers all \
+        --flash-attn on \
+        --ctx-size 131072 \
+        --parallel 1 \
+        --host 127.0.0.1 \
+        --port 8082 \
+        --jinja \
+        --temp 1.0 \
+        --top-p 0.95 \
+        --top-k 64 \
+        --chat-template-kwargs '{"reasoning_strength":"low"}'
       ;;
     muse-glimmer-30b)
       export HF_HOME="${HF_HOME:-$MODEL_HOME/cache/huggingface}"

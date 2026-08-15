@@ -61,6 +61,20 @@ profile because it has no port or health endpoint. The cookbook lives at
 `~/models/runtime/muse-glimmer-harness-venv`, and the BF16 checkpoint at
 `~/models/llm/meta/muse-glimmer-30b-bf16`.
 
+For Pi, Qwen Code, OpenCode, and other OpenAI-compatible clients, use the
+separate GGUF server profile:
+
+```bash
+modelctl start muse-glimmer-30b-server
+modelctl status muse-glimmer-30b-server
+modelctl logs muse-glimmer-30b-server
+modelctl stop muse-glimmer-30b-server
+```
+
+It serves the API model `muse-glimmer` at
+`http://127.0.0.1:8082/v1`. The official dynamic Q4_K_XL model and vision
+projector live under `~/models/gguf/meta/muse-glimmer-30b`.
+
 ## Storage policy
 
 - `~/models/cache` contains relocatable download caches.
