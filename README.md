@@ -41,6 +41,26 @@ Run `modelctl doctor` after moving or updating models. The complete inventory,
 including non-server assets and application-managed models, is in
 `models.toml`.
 
+## Muse Glimmer reference harness
+
+Muse Glimmer is registered with the same `modelctl` control plane as the other
+models. Meta's official `agentic-fundamentals` loop loads the BF16 Hugging Face
+checkpoint directly in Python, so it runs as an interactive harness rather than
+a background model server:
+
+```bash
+modelctl status muse-glimmer-30b
+modelctl doctor muse-glimmer-30b
+modelctl run muse-glimmer-30b --root ~/code/my-project
+modelctl run muse-glimmer-30b --task "Review the Python files" --max-steps 16
+```
+
+`modelctl start muse-glimmer-30b` intentionally refuses to daemonize this
+profile because it has no port or health endpoint. The cookbook lives at
+`~/code/meta-oss-cookbook`, its isolated environment at
+`~/models/runtime/muse-glimmer-harness-venv`, and the BF16 checkpoint at
+`~/models/llm/meta/muse-glimmer-30b-bf16`.
+
 ## Storage policy
 
 - `~/models/cache` contains relocatable download caches.

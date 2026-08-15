@@ -112,3 +112,12 @@ runner = "llama.cpp"
 path = "gguf/qwen/thinkingcap-qwen3.6-27b"
 status = "not-installed"
 notes = "The incomplete download was removed; use ~/code/qwen3.6-thinkingcap/download-model to install it centrally."
+
+[[models]]
+id = "muse-glimmer-30b"
+name = "Muse Glimmer 30B BF16 reference harness"
+format = "safetensors"
+runner = "Meta agentic-fundamentals"
+path = "llm/meta/muse-glimmer-30b-bf16"
+status = "ready"
+notes = "Meta's in-process reference agent loop; use modelctl run rather than modelctl start because this profile is not a server."

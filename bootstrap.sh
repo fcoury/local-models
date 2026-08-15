@@ -34,6 +34,7 @@ mkdir -p \
   "$MODEL_HOME/cache" \
   "$MODEL_HOME/diffusers" \
   "$MODEL_HOME/gguf" \
+  "$MODEL_HOME/llm" \
   "$MODEL_HOME/managed" \
   "$MODEL_HOME/mlx" \
   "$MODEL_HOME/runtime" \

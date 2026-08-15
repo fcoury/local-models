@@ -5,6 +5,9 @@ MODEL_HOME="${MODEL_HOME:-$HOME/models}"
 STATE_HOME="${LOCAL_MODEL_STATE_HOME:-$HOME/Library/Application Support/local-models}"
 LOG_DIR="$STATE_HOME/logs"
 PID_DIR="$STATE_HOME/pids"
+MUSE_GLIMMER_HARNESS_REPO="${MUSE_GLIMMER_HARNESS_REPO:-$HOME/code/meta-oss-cookbook}"
+MUSE_GLIMMER_HARNESS_DIR="$MUSE_GLIMMER_HARNESS_REPO/agentic-fundamentals"
+MUSE_GLIMMER_HARNESS_VENV="${MUSE_GLIMMER_HARNESS_VENV:-$MODEL_HOME/runtime/muse-glimmer-harness-venv}"
 
 mkdir -p "$LOG_DIR" "$PID_DIR"
 
@@ -22,6 +25,7 @@ mererun-ltx-2.3
 mererun-qwen3-coder-next
 mererun-gemma-3-12b
 mererun-z-image-turbo
+muse-glimmer-30b
 EOF
 }
 
@@ -39,6 +43,7 @@ label() {
     mererun-qwen3-coder-next) echo "Qwen3 Coder Next Q4_K_M (MereRun managed)" ;;
     mererun-gemma-3-12b) echo "Gemma 3 12B 4-bit (MereRun managed)" ;;
     mererun-z-image-turbo) echo "Z-Image Turbo 4-bit (MereRun managed)" ;;
+    muse-glimmer-30b) echo "Muse Glimmer 30B BF16 reference harness" ;;
     *) return 1 ;;
   esac
 }
@@ -47,6 +52,9 @@ kind() {
   case "$1" in
     qwen3.8-27b|qwen3.6-35b-a3b|deepseek-v4-flash|minimax-h3-standard|minimax-h3-heretic)
       echo service
+      ;;
+    muse-glimmer-30b)
+      echo harness
       ;;
     *)
       echo asset
@@ -79,6 +87,7 @@ model_path() {
     mererun-qwen3-coder-next) echo "$MODEL_HOME/managed/mererun/snapshots/models/Qwen/Qwen3-Coder-Next-GGUF" ;;
     mererun-gemma-3-12b) echo "$MODEL_HOME/managed/mererun/snapshots/models/mlx-community/gemma-3-12b-it-4bit" ;;
     mererun-z-image-turbo) echo "$MODEL_HOME/managed/mererun/snapshots/models/filipstrand/Z-Image-Turbo-mflux-4bit" ;;
+    muse-glimmer-30b) echo "$MODEL_HOME/llm/meta/muse-glimmer-30b-bf16" ;;
     *) return 1 ;;
   esac
 }
@@ -101,6 +110,15 @@ ready() {
       ;;
     minimax-h3-standard|minimax-h3-heretic)
       [[ -f "$(model_path "$id")/config.json" && -x "$HOME/code/minimax-h3-mlx/runtime/mlx-serve" ]]
+      ;;
+    muse-glimmer-30b)
+      [[ -f "$(model_path "$id")/config.json" &&
+        -f "$(model_path "$id")/model.safetensors.index.json" &&
+        -f "$(model_path "$id")/model-00001-of-00002.safetensors" &&
+        -f "$(model_path "$id")/model-00002-of-00002.safetensors" &&
+        -x "$MUSE_GLIMMER_HARNESS_VENV/bin/python" &&
+        -f "$MUSE_GLIMMER_HARNESS_DIR/run_agent.py" &&
+        -f "$MUSE_GLIMMER_HARNESS_DIR/response_parser.py" ]]
       ;;
     *)
       [[ -e "$(model_path "$id")" ]]
@@ -146,6 +164,7 @@ service_pid() {
 
 run_model() {
   local id="$1"
+  shift
   case "$id" in
     qwen3.8-27b)
       exec llama-server \
@@ -202,6 +221,13 @@ run_model() {
         --port "$(port "$id")" \
         --timeout 0
       ;;
+    muse-glimmer-30b)
+      export HF_HOME="${HF_HOME:-$MODEL_HOME/cache/huggingface}"
+      MUSE_GLIMMER_MODEL_PATH="$(model_path "$id")"
+      export MUSE_GLIMMER_MODEL_PATH
+      cd "$MUSE_GLIMMER_HARNESS_DIR"
+      exec "$MUSE_GLIMMER_HARNESS_VENV/bin/python" run_agent.py "$@"
+      ;;
     *)
       echo "$id is an asset collection and does not have a standalone server." >&2
       exit 2
@@ -211,8 +237,10 @@ run_model() {
 
 status_one() {
   local id="$1"
+  local model_kind
   local state
-  if [[ "$(kind "$id")" == asset ]]; then
+  model_kind="$(kind "$id")"
+  if [[ "$model_kind" != service ]]; then
     if ready "$id"; then
       case "$id" in
         mererun-*) state=managed ;;
@@ -254,10 +282,17 @@ start_model() {
   local launch_label
   local self
 
-  if [[ "$(kind "$id")" != service ]]; then
-    echo "$id is an asset collection and cannot be started." >&2
-    exit 2
-  fi
+  case "$(kind "$id")" in
+    harness)
+      echo "$id is an interactive harness, not a model server." >&2
+      echo "Run it in the foreground with: modelctl run $id [ARGS]" >&2
+      exit 2
+      ;;
+    asset)
+      echo "$id is an asset collection and cannot be started." >&2
+      exit 2
+      ;;
+  esac
   if ! ready "$id"; then
     echo "Model or runtime is incomplete: $(model_path "$id")" >&2
     exit 1
@@ -351,7 +386,26 @@ stop_model() {
 }
 
 doctor() {
+  local requested_id="${1:-}"
   local failures=0
+
+  if [[ -n "$requested_id" ]]; then
+    known_model "$requested_id" || { echo "Unknown model: $requested_id" >&2; return 2; }
+    if ! ready "$requested_id"; then
+      echo "missing $requested_id -> $(model_path "$requested_id")"
+      return 1
+    fi
+    if [[ "$requested_id" == muse-glimmer-30b ]]; then
+      if ! "$MUSE_GLIMMER_HARNESS_VENV/bin/python" \
+        "$MUSE_GLIMMER_HARNESS_DIR/response_parser.py"; then
+        echo "Muse Glimmer parser checks failed." >&2
+        return 1
+      fi
+    fi
+    echo "All checks passed for $requested_id."
+    return
+  fi
+
   for command_name in curl lsof; do
     if ! command -v "$command_name" >/dev/null 2>&1; then
       echo "missing command: $command_name"
@@ -387,11 +441,11 @@ Commands:
   list                 Show all installed model services and assets
   status [MODEL]       Show all statuses, or one model's status
   start MODEL          Start a model server in the background
-  run MODEL            Run a model server in the foreground
+  run MODEL [ARGS]     Run a model server or interactive harness in the foreground
   stop MODEL           Stop a server started by modelctl
   logs MODEL           Follow a model server log
   path MODEL           Print the canonical model path
-  doctor               Validate runtimes, weights, and managed links
+  doctor [MODEL]       Validate all models, or one model and its runtime
 EOF
 }
 
@@ -418,17 +472,20 @@ case "$command_name" in
     [[ -n "${2:-}" ]] || { usage >&2; exit 2; }
     known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
     ready "$2" || { echo "Model or runtime is incomplete: $(model_path "$2")" >&2; exit 1; }
-    run_model "$2"
+    id="$2"
+    shift 2
+    run_model "$id" "$@"
     ;;
   stop)
     [[ -n "${2:-}" ]] || { usage >&2; exit 2; }
     known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
-    [[ "$(kind "$2")" == service ]] || { echo "$2 is not a service." >&2; exit 2; }
+    [[ "$(kind "$2")" == service ]] || { echo "$2 is not a model server." >&2; exit 2; }
     stop_model "$2"
     ;;
   logs)
     [[ -n "${2:-}" ]] || { usage >&2; exit 2; }
     known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
+    [[ "$(kind "$2")" == service ]] || { echo "$2 is not a model server and has no managed log." >&2; exit 2; }
     touch "$LOG_DIR/$2.log"
     exec tail -f "$LOG_DIR/$2.log"
     ;;
@@ -438,7 +495,7 @@ case "$command_name" in
     model_path "$2"
     ;;
   doctor)
-    doctor
+    doctor "${2:-}"
     ;;
   __run)
     [[ -n "${2:-}" ]] || exit 2
