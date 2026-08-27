@@ -36,6 +36,8 @@ service binds to `127.0.0.1`.
 Available services:
 
 - `qwen3.8-27b` on port 8080; this is the Qwen Code backend.
+- `qwen3.8-27b-fixed-v22-4` on port 8085; this reuses the Q8 weights with a
+  pinned fixed Jinja template for controlled Vibebench comparisons.
 - `qwen3.8-27b-mlxfast-mtp-server` on port 8083; native MLX.fast MTP for
   OpenAI-compatible clients and `modelbench`.
 - `qwen3.6-35b-a3b` on port 8081.
@@ -46,6 +48,30 @@ Available services:
 Run `modelctl doctor` after moving or updating models. The complete inventory,
 including non-server assets and application-managed models, is in
 `models.toml`.
+
+## Qwen fixed-template comparison profile
+
+`qwen3.8-27b-fixed-v22-4` is a server profile, not another model download. It
+reuses the `qwen3.8-27b` Q8 weights and multimodal projector, but gives the
+Froggeric v22.4 template a distinct port and API model identity:
+
+```bash
+modelctl doctor qwen3.8-27b-fixed-v22-4
+modelctl endpoint qwen3.8-27b-fixed-v22-4 --json
+modelctl start qwen3.8-27b-fixed-v22-4
+modelctl stop qwen3.8-27b-fixed-v22-4
+```
+
+The template is vendored under `templates/qwen3.8/` at upstream commit
+`756cfb69d742355fd310b4ba9d50815a27d9d241` and verified against its pinned
+SHA-256 before the profile is considered ready. The server uses
+`--reasoning-format deepseek` and preserves reasoning history. Its fallback
+reasoning effort remains `medium`; benchmark clients should send `low`,
+`medium`, `xhigh`, or `off` explicitly so reasoning is an experimental control.
+
+The baseline and fixed-template profiles deliberately cannot run together.
+Stop whichever Qwen profile is active before starting the other; this avoids
+duplicate model residency and benchmark contention.
 
 ## Qwen MLX.fast MTP harness
 

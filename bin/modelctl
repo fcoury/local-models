@@ -8,6 +8,8 @@ PID_DIR="$STATE_HOME/pids"
 MUSE_GLIMMER_HARNESS_REPO="${MUSE_GLIMMER_HARNESS_REPO:-$HOME/code/meta-oss-cookbook}"
 MUSE_GLIMMER_HARNESS_DIR="$MUSE_GLIMMER_HARNESS_REPO/agentic-fundamentals"
 MUSE_GLIMMER_HARNESS_VENV="${MUSE_GLIMMER_HARNESS_VENV:-$MODEL_HOME/runtime/muse-glimmer-harness-venv}"
+QWEN_FIXED_TEMPLATE="$MODEL_HOME/templates/qwen3.8/froggeric-v22.4.jinja"
+QWEN_FIXED_TEMPLATE_SHA256="696c4f110ae05f349f381b9c7f3ef40172adc369e918f18738fec0036d14fc7b"
 
 if [[ "${1:-}" != __complete ]]; then
   mkdir -p "$LOG_DIR" "$PID_DIR"
@@ -16,6 +18,7 @@ fi
 models() {
   cat <<'EOF'
 qwen3.8-27b
+qwen3.8-27b-fixed-v22-4
 qwen3.8-27b-mlxfast-mtp
 qwen3.8-27b-mlxfast-mtp-server
 qwen3.6-35b-a3b
@@ -61,6 +64,7 @@ completion_models() {
 label() {
   case "$1" in
     qwen3.8-27b) echo "Qwen3.8 27B Q8 (llama.cpp)" ;;
+    qwen3.8-27b-fixed-v22-4) echo "Qwen3.8 27B Q8 + Froggeric fixed template v22.4" ;;
     qwen3.8-27b-mlxfast-mtp) echo "Qwen3.8 27B MLX.fast native MTP harness" ;;
     qwen3.8-27b-mlxfast-mtp-server) echo "Qwen3.8 27B MLX.fast native MTP OpenAI server" ;;
     qwen3.6-35b-a3b) echo "Qwen3.6 35B A3B OptiQ 4-bit (MLX)" ;;
@@ -82,7 +86,7 @@ label() {
 
 kind() {
   case "$1" in
-    qwen3.8-27b|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|minimax-h3-standard|minimax-h3-heretic|muse-glimmer-30b-server)
+    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|minimax-h3-standard|minimax-h3-heretic|muse-glimmer-30b-server)
       echo service
       ;;
     muse-glimmer-30b|qwen3.8-27b-mlxfast-mtp)
@@ -97,6 +101,7 @@ kind() {
 port() {
   case "$1" in
     qwen3.8-27b) echo 8080 ;;
+    qwen3.8-27b-fixed-v22-4) echo 8085 ;;
     qwen3.8-27b-mlxfast-mtp-server) echo 8083 ;;
     qwen3.6-35b-a3b) echo 8081 ;;
     deepseek-v4-flash) echo 8000 ;;
@@ -110,6 +115,7 @@ port() {
 api_model() {
   case "$1" in
     qwen3.8-27b) echo 'ggml-org/Qwen3.8-27B-GGUF:Q8_0' ;;
+    qwen3.8-27b-fixed-v22-4) echo 'qwen3.8-27b-q8-fixed-v22.4' ;;
     qwen3.8-27b-mlxfast-mtp-server) echo 'qwen3.8-27b-mlxfast-mtp-server' ;;
     qwen3.6-35b-a3b) echo 'mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit' ;;
     muse-glimmer-30b-server) echo 'muse-glimmer' ;;
@@ -119,7 +125,7 @@ api_model() {
 
 context_size() {
   case "$1" in
-    qwen3.8-27b|muse-glimmer-30b-server) echo 131072 ;;
+    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|muse-glimmer-30b-server) echo 131072 ;;
     qwen3.8-27b-mlxfast-mtp-server) echo 40960 ;;
     deepseek-v4-flash) echo 250000 ;;
     *) return 1 ;;
@@ -128,7 +134,7 @@ context_size() {
 
 output_size() {
   case "$1" in
-    qwen3.8-27b|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|muse-glimmer-30b-server)
+    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|muse-glimmer-30b-server)
       echo 32768
       ;;
     *) return 1 ;;
@@ -180,6 +186,7 @@ endpoint() {
 model_path() {
   case "$1" in
     qwen3.8-27b) echo "$MODEL_HOME/aliases/qwen3.8-27b" ;;
+    qwen3.8-27b-fixed-v22-4) echo "$MODEL_HOME/aliases/qwen3.8-27b" ;;
     qwen3.8-27b-mlxfast-mtp) echo "$MODEL_HOME/mlx/qwen/qwen3.8-27b-mlxfast-mtp" ;;
     qwen3.8-27b-mlxfast-mtp-server) echo "$MODEL_HOME/mlx/qwen/qwen3.8-27b-mlxfast-mtp" ;;
     qwen3.6-35b-a3b) echo "$MODEL_HOME/aliases/qwen3.6-35b-a3b-mlx" ;;
@@ -208,6 +215,13 @@ ready() {
   case "$id" in
     qwen3.8-27b)
       [[ -f "$MODEL_HOME/aliases/qwen3.8-27b/model.gguf" && -f "$MODEL_HOME/aliases/qwen3.8-27b/mmproj.gguf" ]]
+      ;;
+    qwen3.8-27b-fixed-v22-4)
+      [[ -f "$MODEL_HOME/aliases/qwen3.8-27b/model.gguf" &&
+        -f "$MODEL_HOME/aliases/qwen3.8-27b/mmproj.gguf" &&
+        -f "$QWEN_FIXED_TEMPLATE" &&
+        "$(shasum -a 256 "$QWEN_FIXED_TEMPLATE" | awk '{ print $1 }')" == "$QWEN_FIXED_TEMPLATE_SHA256" &&
+        -x "$(command -v llama-server 2>/dev/null)" ]]
       ;;
     deepseek-v4-flash)
       [[ -f "$MODEL_HOME/aliases/deepseek-v4-flash-current.gguf" && -x "$HOME/code/ds4/ds4-server" ]]
@@ -282,11 +296,31 @@ service_pid() {
     head -n 1
 }
 
+qwen_variant_peer() {
+  case "$1" in
+    qwen3.8-27b) echo qwen3.8-27b-fixed-v22-4 ;;
+    qwen3.8-27b-fixed-v22-4) echo qwen3.8-27b ;;
+    *) return 1 ;;
+  esac
+}
+
+require_qwen_variant_peer_stopped() {
+  local id="$1"
+  local peer
+  peer="$(qwen_variant_peer "$id" 2>/dev/null || true)"
+  [[ -n "$peer" ]] || return 0
+  if service_loaded "$peer" || listening "$peer"; then
+    echo "$id reuses the same Qwen weights as $peer; stop $peer before starting this profile." >&2
+    return 1
+  fi
+}
+
 run_model() {
   local id="$1"
   shift
   case "$id" in
     qwen3.8-27b)
+      require_qwen_variant_peer_stopped "$id"
       exec llama-server \
         --model "$MODEL_HOME/aliases/qwen3.8-27b/model.gguf" \
         --mmproj "$MODEL_HOME/aliases/qwen3.8-27b/mmproj.gguf" \
@@ -303,6 +337,30 @@ run_model() {
         --top-k 20 \
         --min-p 0 \
         --reasoning on \
+        --reasoning-preserve \
+        --image-min-tokens 1024 \
+        --chat-template-kwargs '{"reasoning_effort":"medium"}'
+      ;;
+    qwen3.8-27b-fixed-v22-4)
+      require_qwen_variant_peer_stopped "$id"
+      exec llama-server \
+        --model "$MODEL_HOME/aliases/qwen3.8-27b/model.gguf" \
+        --mmproj "$MODEL_HOME/aliases/qwen3.8-27b/mmproj.gguf" \
+        --alias 'qwen3.8-27b-q8-fixed-v22.4' \
+        --gpu-layers all \
+        --flash-attn on \
+        --ctx-size 131072 \
+        --parallel 1 \
+        --host 127.0.0.1 \
+        --port 8085 \
+        --cors-origins localhost \
+        --temp 1.0 \
+        --top-p 0.95 \
+        --top-k 20 \
+        --min-p 0 \
+        --jinja \
+        --chat-template-file "$QWEN_FIXED_TEMPLATE" \
+        --reasoning-format deepseek \
         --reasoning-preserve \
         --image-min-tokens 1024 \
         --chat-template-kwargs '{"reasoning_effort":"medium"}'
@@ -557,7 +615,7 @@ doctor() {
     return
   fi
 
-  for command_name in curl lsof; do
+  for command_name in curl lsof shasum; do
     if ! command -v "$command_name" >/dev/null 2>&1; then
       echo "missing command: $command_name"
       failures=$((failures + 1))

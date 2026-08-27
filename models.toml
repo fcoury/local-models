@@ -12,6 +12,25 @@ status = "ready"
 consumer = "Qwen Code"
 
 [[models]]
+id = "qwen3.8-27b-fixed-v22-4"
+name = "Qwen3.8 27B Q8 with Froggeric fixed template v22.4"
+format = "GGUF"
+runner = "llama.cpp"
+path = "aliases/qwen3.8-27b"
+port = 8085
+context = 131072
+output = 32768
+status = "ready"
+variant_of = "qwen3.8-27b"
+template = "templates/qwen3.8/froggeric-v22.4.jinja"
+template_sha256 = "696c4f110ae05f349f381b9c7f3ef40172adc369e918f18738fec0036d14fc7b"
+template_source_commit = "756cfb69d742355fd310b4ba9d50815a27d9d241"
+reasoning_format = "deepseek"
+default_reasoning_effort = "medium"
+consumer = "Vibebench fixed-template A/B evaluations"
+notes = "Reuses the qwen3.8-27b Q8 weights and mmproj; run only one of the baseline and fixed-template profiles at a time."
+
+[[models]]
 id = "qwen3.8-27b-mlxfast-mtp"
 name = "Qwen3.8 27B MLX.fast native MTP"
 format = "MLX"

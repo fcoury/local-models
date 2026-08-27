@@ -38,6 +38,7 @@ mkdir -p \
   "$MODEL_HOME/managed" \
   "$MODEL_HOME/mlx" \
   "$MODEL_HOME/runtime" \
+  "$MODEL_HOME/templates/qwen3.8" \
   "$STATE_HOME/logs" \
   "$STATE_HOME/pids"
 
@@ -46,6 +47,8 @@ ensure_link "$REPO_DIR/bin/modelbench" "$HOME/.local/bin/modelbench"
 ensure_link "$REPO_DIR/completions/modelctl.fish" "$HOME/.config/fish/completions/modelctl.fish"
 ensure_link "$REPO_DIR/env.sh" "$HOME/.config/local-models/env"
 ensure_link "$REPO_DIR/compat" "$MODEL_HOME/scripts"
+ensure_link "$REPO_DIR/templates/qwen3.8/froggeric-v22.4.jinja" "$MODEL_HOME/templates/qwen3.8/froggeric-v22.4.jinja"
+ensure_link "$REPO_DIR/templates/qwen3.8/froggeric-v22.4.sha256" "$MODEL_HOME/templates/qwen3.8/froggeric-v22.4.sha256"
 
 echo
 echo "Bootstrap complete."
