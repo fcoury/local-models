@@ -12,6 +12,28 @@ status = "ready"
 consumer = "Qwen Code"
 
 [[models]]
+id = "qwen3.8-27b-mlxfast-mtp"
+name = "Qwen3.8 27B MLX.fast native MTP"
+format = "MLX"
+runner = "MLX.fast Swift harness"
+path = "mlx/qwen/qwen3.8-27b-mlxfast-mtp"
+status = "ready"
+notes = "Foreground text-only MTP harness; use modelctl run, not start or endpoint."
+
+[[models]]
+id = "qwen3.8-27b-mlxfast-mtp-server"
+name = "Qwen3.8 27B MLX.fast native MTP server"
+format = "MLX"
+runner = "MLX.fast Swift OpenAI adapter"
+path = "mlx/qwen/qwen3.8-27b-mlxfast-mtp"
+port = 8083
+context = 40960
+output = 32768
+status = "ready"
+consumer = "modelbench-rs, OpenCode, and OpenAI-compatible clients"
+notes = "Resident native-MTP server; deterministic greedy decoding with Qwen tool/reasoning parsing; hardware-safe 40960-token context and 32768-token output ceiling by default."
+
+[[models]]
 id = "qwen3.6-35b-a3b"
 name = "Qwen3.6 35B A3B OptiQ 4-bit"
 format = "MLX"

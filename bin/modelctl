@@ -14,6 +14,8 @@ mkdir -p "$LOG_DIR" "$PID_DIR"
 models() {
   cat <<'EOF'
 qwen3.8-27b
+qwen3.8-27b-mlxfast-mtp
+qwen3.8-27b-mlxfast-mtp-server
 qwen3.6-35b-a3b
 deepseek-v4-flash
 minimax-h3-standard
@@ -33,6 +35,8 @@ EOF
 label() {
   case "$1" in
     qwen3.8-27b) echo "Qwen3.8 27B Q8 (llama.cpp)" ;;
+    qwen3.8-27b-mlxfast-mtp) echo "Qwen3.8 27B MLX.fast native MTP harness" ;;
+    qwen3.8-27b-mlxfast-mtp-server) echo "Qwen3.8 27B MLX.fast native MTP OpenAI server" ;;
     qwen3.6-35b-a3b) echo "Qwen3.6 35B A3B OptiQ 4-bit (MLX)" ;;
     deepseek-v4-flash) echo "DeepSeek V4 Flash IQ2XXS 0731 (DS4)" ;;
     minimax-h3-standard) echo "MiniMax H3 standard 4-bit (MLX)" ;;
@@ -52,10 +56,10 @@ label() {
 
 kind() {
   case "$1" in
-    qwen3.8-27b|qwen3.6-35b-a3b|deepseek-v4-flash|minimax-h3-standard|minimax-h3-heretic|muse-glimmer-30b-server)
+    qwen3.8-27b|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|minimax-h3-standard|minimax-h3-heretic|muse-glimmer-30b-server)
       echo service
       ;;
-    muse-glimmer-30b)
+    muse-glimmer-30b|qwen3.8-27b-mlxfast-mtp)
       echo harness
       ;;
     *)
@@ -67,6 +71,7 @@ kind() {
 port() {
   case "$1" in
     qwen3.8-27b) echo 8080 ;;
+    qwen3.8-27b-mlxfast-mtp-server) echo 8083 ;;
     qwen3.6-35b-a3b) echo 8081 ;;
     deepseek-v4-flash) echo 8000 ;;
     minimax-h3-standard) echo 11234 ;;
@@ -76,9 +81,81 @@ port() {
   esac
 }
 
+api_model() {
+  case "$1" in
+    qwen3.8-27b) echo 'ggml-org/Qwen3.8-27B-GGUF:Q8_0' ;;
+    qwen3.8-27b-mlxfast-mtp-server) echo 'qwen3.8-27b-mlxfast-mtp-server' ;;
+    qwen3.6-35b-a3b) echo 'mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit' ;;
+    muse-glimmer-30b-server) echo 'muse-glimmer' ;;
+    *) return 1 ;;
+  esac
+}
+
+context_size() {
+  case "$1" in
+    qwen3.8-27b|muse-glimmer-30b-server) echo 131072 ;;
+    qwen3.8-27b-mlxfast-mtp-server) echo 40960 ;;
+    deepseek-v4-flash) echo 250000 ;;
+    *) return 1 ;;
+  esac
+}
+
+output_size() {
+  case "$1" in
+    qwen3.8-27b|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|muse-glimmer-30b-server)
+      echo 32768
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+endpoint() {
+  local id="$1"
+  local output_format="${2:-text}"
+  local service_port
+  local base_url
+  local model_id
+  local context
+  local output
+
+  [[ "$(kind "$id")" == service ]] || {
+    echo "$id does not expose an OpenAI-compatible endpoint." >&2
+    return 2
+  }
+
+  service_port="$(port "$id")"
+  base_url="http://127.0.0.1:$service_port/v1"
+  model_id="$(api_model "$id" 2>/dev/null || true)"
+  context="$(context_size "$id" 2>/dev/null || true)"
+  output="$(output_size "$id" 2>/dev/null || true)"
+
+  if [[ "$output_format" == --json ]]; then
+    command -v jq >/dev/null 2>&1 || {
+      echo "jq is required for JSON endpoint output." >&2
+      return 1
+    }
+    jq -n \
+      --arg id "$id" \
+      --arg base_url "$base_url" \
+      --arg api_model "$model_id" \
+      --argjson context "${context:-null}" \
+      --argjson output "${output:-null}" \
+      '{id: $id, base_url: $base_url, api_model: (if $api_model == "" then null else $api_model end), context: $context, output: $output}'
+    return
+  fi
+
+  [[ "$output_format" == text ]] || {
+    echo "Unknown endpoint output format: $output_format" >&2
+    return 2
+  }
+  printf '%s\n' "$base_url"
+}
+
 model_path() {
   case "$1" in
     qwen3.8-27b) echo "$MODEL_HOME/aliases/qwen3.8-27b" ;;
+    qwen3.8-27b-mlxfast-mtp) echo "$MODEL_HOME/mlx/qwen/qwen3.8-27b-mlxfast-mtp" ;;
+    qwen3.8-27b-mlxfast-mtp-server) echo "$MODEL_HOME/mlx/qwen/qwen3.8-27b-mlxfast-mtp" ;;
     qwen3.6-35b-a3b) echo "$MODEL_HOME/aliases/qwen3.6-35b-a3b-mlx" ;;
     deepseek-v4-flash) echo "$MODEL_HOME/aliases/deepseek-v4-flash-current.gguf" ;;
     minimax-h3-standard) echo "$MODEL_HOME/mlx/minimax-h3/standard-4bit" ;;
@@ -111,6 +188,14 @@ ready() {
       ;;
     qwen3.6-35b-a3b)
       [[ -f "$MODEL_HOME/aliases/qwen3.6-35b-a3b-mlx/config.json" && -x "$MODEL_HOME/runtime/mlx-lm-venv/bin/mlx_lm.server" ]]
+      ;;
+    qwen3.8-27b-mlxfast-mtp)
+      [[ -x "$MODEL_HOME/scripts/qwen38-mlxfast-mtp.sh" ]] &&
+        "$MODEL_HOME/scripts/qwen38-mlxfast-mtp.sh" --doctor >/dev/null 2>&1
+      ;;
+    qwen3.8-27b-mlxfast-mtp-server)
+      [[ -x "$MODEL_HOME/scripts/qwen38-mlxfast-server.sh" ]] &&
+        "$MODEL_HOME/scripts/qwen38-mlxfast-server.sh" --doctor >/dev/null 2>&1
       ;;
     minimax-h3-standard|minimax-h3-heretic)
       [[ -f "$(model_path "$id")/config.json" && -x "$HOME/code/minimax-h3-mlx/runtime/mlx-serve" ]]
@@ -208,6 +293,12 @@ run_model() {
         --top-p 0.95 \
         --chat-template-args '{"enable_thinking":false}'
       ;;
+    qwen3.8-27b-mlxfast-mtp)
+      exec "$MODEL_HOME/scripts/qwen38-mlxfast-mtp.sh" "$@"
+      ;;
+    qwen3.8-27b-mlxfast-mtp-server)
+      exec "$MODEL_HOME/scripts/qwen38-mlxfast-server.sh" "$@"
+      ;;
     deepseek-v4-flash)
       local ds4_root="$HOME/code/ds4"
       local ds4_kv_dir="${TMPDIR:-/tmp}/local-models-ds4-kv"
@@ -302,6 +393,13 @@ status_one() {
   fi
 }
 
+startup_timeout() {
+  case "$1" in
+    qwen3.8-27b-mlxfast-mtp-server) echo 600 ;;
+    *) echo 45 ;;
+  esac
+}
+
 start_model() {
   local id="$1"
   local log_file="$LOG_DIR/$id.log"
@@ -323,6 +421,7 @@ start_model() {
     echo "Model or runtime is incomplete: $(model_path "$id")" >&2
     exit 1
   fi
+  require_qwen_variant_peer_stopped "$id"
   if listening "$id"; then
     echo "$id already has a listener on port $(port "$id")."
     status_one "$id"
@@ -354,7 +453,7 @@ start_model() {
       "$self" __run "$id"
 
   local empty_pid_checks=0
-  for _ in $(seq 1 45); do
+  for _ in $(seq 1 "$(startup_timeout "$id")"); do
     if healthy "$id"; then
       echo "Started $id on http://127.0.0.1:$(port "$id") (PID $(service_pid "$id"))"
       echo "Log: $log_file"
@@ -471,6 +570,8 @@ Commands:
   stop MODEL           Stop a server started by modelctl
   logs MODEL           Follow a model server log
   path MODEL           Print the canonical model path
+  endpoint MODEL [--json]
+                       Print the OpenAI-compatible endpoint metadata
   doctor [MODEL]       Validate all models, or one model and its runtime
 EOF
 }
@@ -497,9 +598,11 @@ case "$command_name" in
   run)
     [[ -n "${2:-}" ]] || { usage >&2; exit 2; }
     known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
-    ready "$2" || { echo "Model or runtime is incomplete: $(model_path "$2")" >&2; exit 1; }
     id="$2"
     shift 2
+    if [[ "$id" != qwen3.8-27b-mlxfast-mtp-server || "${1:-}" != --build ]]; then
+      ready "$id" || { echo "Model or runtime is incomplete: $(model_path "$id")" >&2; exit 1; }
+    fi
     run_model "$id" "$@"
     ;;
   stop)
@@ -519,6 +622,11 @@ case "$command_name" in
     [[ -n "${2:-}" ]] || { usage >&2; exit 2; }
     known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
     model_path "$2"
+    ;;
+  endpoint)
+    [[ -n "${2:-}" ]] || { usage >&2; exit 2; }
+    known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
+    endpoint "$2" "${3:-text}"
     ;;
   doctor)
     doctor "${2:-}"
