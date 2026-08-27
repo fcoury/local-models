@@ -9,7 +9,9 @@ MUSE_GLIMMER_HARNESS_REPO="${MUSE_GLIMMER_HARNESS_REPO:-$HOME/code/meta-oss-cook
 MUSE_GLIMMER_HARNESS_DIR="$MUSE_GLIMMER_HARNESS_REPO/agentic-fundamentals"
 MUSE_GLIMMER_HARNESS_VENV="${MUSE_GLIMMER_HARNESS_VENV:-$MODEL_HOME/runtime/muse-glimmer-harness-venv}"
 
-mkdir -p "$LOG_DIR" "$PID_DIR"
+if [[ "${1:-}" != __complete ]]; then
+  mkdir -p "$LOG_DIR" "$PID_DIR"
+fi
 
 models() {
   cat <<'EOF'
@@ -30,6 +32,30 @@ mererun-z-image-turbo
 muse-glimmer-30b
 muse-glimmer-30b-server
 EOF
+}
+
+completion_models() {
+  local scope="${1:-all}"
+  local id
+  local model_kind
+
+  while IFS= read -r id; do
+    model_kind="$(kind "$id")"
+    case "$scope" in
+      all|models)
+        ;;
+      runnable)
+        [[ "$model_kind" == service || "$model_kind" == harness ]] || continue
+        ;;
+      services)
+        [[ "$model_kind" == service ]] || continue
+        ;;
+      *)
+        return 2
+        ;;
+    esac
+    printf '%s\t%s\n' "$id" "$(label "$id")"
+  done < <(models)
 }
 
 label() {
@@ -634,6 +660,10 @@ case "$command_name" in
   __run)
     [[ -n "${2:-}" ]] || exit 2
     run_model "$2"
+    ;;
+  __complete)
+    [[ "${2:-}" == all || "${2:-}" == models || "${2:-}" == runnable || "${2:-}" == services ]] || exit 2
+    completion_models "$2"
     ;;
   help|-h|--help|'')
     usage

@@ -43,6 +43,7 @@ mkdir -p \
 
 ensure_link "$REPO_DIR/bin/modelctl" "$HOME/.local/bin/modelctl"
 ensure_link "$REPO_DIR/bin/modelbench" "$HOME/.local/bin/modelbench"
+ensure_link "$REPO_DIR/completions/modelctl.fish" "$HOME/.config/fish/completions/modelctl.fish"
 ensure_link "$REPO_DIR/env.sh" "$HOME/.config/local-models/env"
 ensure_link "$REPO_DIR/compat" "$MODEL_HOME/scripts"
 

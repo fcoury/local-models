@@ -11,6 +11,10 @@ After cloning this repository, recreate the command and compatibility links:
 ./bootstrap.sh
 ```
 
+The bootstrap also installs Fish completion for `modelctl`, including the
+command list and context-sensitive model names. Restart Fish or run
+`source ~/.config/fish/config.fish` after bootstrapping if it was already open.
+
 The bootstrap is idempotent and refuses to overwrite existing files or links
 that point somewhere else. It creates only the empty model category and
 runtime-state directories; model weights must be restored separately.
