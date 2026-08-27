@@ -1,0 +1,5 @@
+{
+  "repository": "https://github.com/akitaonrails/llm-coding-benchmark.git",
+  "revision": "ac88663b43964d6d76f9b7450cb13d19ba89f4d8",
+  "runner": "scripts/run_benchmark_v2.py"
+}

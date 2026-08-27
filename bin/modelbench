@@ -1,0 +1,448 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+BENCH_CONFIG_DIR="$REPO_DIR/benchmarks/llm-coding"
+UPSTREAM_LOCK="$BENCH_CONFIG_DIR/upstream.lock.json"
+MODEL_CONFIG="$BENCH_CONFIG_DIR/models.json"
+MODELCTL="$REPO_DIR/bin/modelctl"
+STATE_ROOT="${LOCAL_MODEL_STATE_HOME:-$HOME/Library/Application Support/local-models}/benchmarks/llm-coding"
+SOURCE_ROOT="$STATE_ROOT/source"
+RUNS_ROOT="$STATE_ROOT/runs"
+LOCK_DIR="$STATE_ROOT/run.lock"
+WAIT_SECONDS="${MODEL_BENCH_WAIT_SECONDS:-900}"
+PHASE_TIMEOUT_SECONDS="${MODEL_BENCH_PHASE_TIMEOUT_SECONDS:-7200}"
+USE_RUNNING="${MODEL_BENCH_USE_RUNNING:-0}"
+OUTPUT_LIMIT="${MODEL_BENCH_OUTPUT_LIMIT:-16384}"
+BENCHMARK_ENV_FILE="${MODEL_BENCH_ENV_FILE:-$HOME/.config/local-models/benchmark.env}"
+OWNED_SERVER=0
+LOCK_HELD=0
+ACTIVE_MODEL=""
+
+usage() {
+  cat <<'EOF'
+Usage: modelbench COMMAND [MODEL]
+
+Commands:
+  prepare             Fetch the pinned benchmark runner into runtime storage
+  preflight MODEL     Check model metadata, server API, and OpenCode tool use
+  run MODEL           Run the upstream three-phase v2 benchmark
+  latest              Print the newest benchmark run directory
+EOF
+}
+
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || {
+    echo "Missing required command: $1" >&2
+    exit 1
+  }
+}
+
+load_benchmark_secret() {
+  local mode
+  local line
+  local value
+
+  [[ -z "${OPENROUTER_API_KEY:-}" && -f "$BENCHMARK_ENV_FILE" ]] || return 0
+  mode="$(stat -f '%Lp' "$BENCHMARK_ENV_FILE")"
+  if (( 10#$mode > 600 )); then
+    echo "Refusing to read benchmark secrets with mode $mode: $BENCHMARK_ENV_FILE" >&2
+    echo "Run: chmod 600 '$BENCHMARK_ENV_FILE'" >&2
+    exit 1
+  fi
+  line="$(sed -n -E 's/^(export[[:space:]]+)?OPENROUTER_API_KEY=(.*)$/\2/p' "$BENCHMARK_ENV_FILE" | tail -1)"
+  [[ -n "$line" ]] || return 0
+  value="$line"
+  if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+    value="${value:1:${#value}-2}"
+  elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
+    value="${value:1:${#value}-2}"
+  fi
+  export OPENROUTER_API_KEY="$value"
+}
+
+model_entry() {
+  local id="$1"
+  jq -e --arg id "$id" '.models[] | select(.modelctl_id == $id)' "$MODEL_CONFIG"
+}
+
+source_revision() {
+  jq -er '.revision' "$UPSTREAM_LOCK"
+}
+
+source_dir() {
+  printf '%s/%s\n' "$SOURCE_ROOT" "$(source_revision)"
+}
+
+prepare_upstream() {
+  local revision
+  local repository
+  local destination
+  local temporary
+  local checkout
+
+  revision="$(source_revision)"
+  repository="$(jq -er '.repository' "$UPSTREAM_LOCK")"
+  destination="$(source_dir)"
+  if [[ -f "$destination/scripts/run_benchmark_v2.py" && -f "$destination/prompts/benchmark_prompt_v2.txt" ]]; then
+    echo "Benchmark runner ready at $destination"
+    return
+  fi
+
+  mkdir -p "$SOURCE_ROOT" "$STATE_ROOT/tmp"
+  temporary="$(mktemp -d "$STATE_ROOT/tmp/upstream.XXXXXX")"
+  checkout="$temporary/checkout"
+  trap 'rm -rf -- "$temporary"' RETURN
+
+  echo "Fetching benchmark revision $revision"
+  git clone --quiet --filter=blob:none --no-checkout "$repository" "$checkout"
+  git -C "$checkout" fetch --quiet origin "$revision"
+  git -C "$checkout" cat-file -e "$revision^{commit}"
+  mkdir -p "$temporary/source"
+  git -C "$checkout" archive "$revision" scripts prompts | tar -x -C "$temporary/source"
+  mkdir -p "$temporary/source/config"
+  [[ -f "$temporary/source/scripts/run_benchmark_v2.py" ]]
+  [[ -f "$temporary/source/prompts/benchmark_prompt_v2.txt" ]]
+  mv "$temporary/source" "$destination"
+  rm -rf -- "$temporary"
+  trap - RETURN
+  echo "Prepared benchmark runner at $destination"
+}
+
+acquire_lock() {
+  mkdir -p "$STATE_ROOT"
+  if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+    echo "Another model benchmark owns $LOCK_DIR" >&2
+    if [[ -f "$LOCK_DIR/owner" ]]; then
+      sed -n '1,20p' "$LOCK_DIR/owner" >&2
+    fi
+    exit 1
+  fi
+  LOCK_HELD=1
+  {
+    printf 'pid=%s\n' "$$"
+    printf 'model=%s\n' "$ACTIVE_MODEL"
+    printf 'started_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  } >"$LOCK_DIR/owner"
+}
+
+cleanup() {
+  local exit_code=$?
+  trap - EXIT INT TERM
+  if (( OWNED_SERVER == 1 )) && [[ -n "$ACTIVE_MODEL" ]]; then
+    echo "Stopping benchmark-owned server $ACTIVE_MODEL"
+    "$MODELCTL" stop "$ACTIVE_MODEL" || true
+  fi
+  if (( LOCK_HELD == 1 )); then
+    rm -rf -- "$LOCK_DIR"
+  fi
+  exit "$exit_code"
+}
+
+model_state() {
+  "$MODELCTL" status "$1" | awk '{print $2}'
+}
+
+other_running_services() {
+  "$MODELCTL" status | awk -v target="$ACTIVE_MODEL" '$2 == "running" && $1 != target {print $1}'
+}
+
+wait_for_idle_machine() {
+  local started
+  local elapsed
+  local busy
+  started="$(date +%s)"
+  while true; do
+    busy="$(other_running_services)"
+    if [[ -z "$busy" ]]; then
+      return
+    fi
+    elapsed=$(( $(date +%s) - started ))
+    if (( elapsed >= WAIT_SECONDS )); then
+      echo "Timed out waiting for other model servers: ${busy//$'\n'/, }" >&2
+      exit 1
+    fi
+    echo "Waiting for other model servers to stop: ${busy//$'\n'/, }"
+    sleep 15
+  done
+}
+
+ensure_target_server() {
+  local state
+  state="$(model_state "$ACTIVE_MODEL")"
+  case "$state" in
+    running)
+      if [[ "$USE_RUNNING" != 1 ]]; then
+        echo "$ACTIVE_MODEL is already running and may belong to another workload." >&2
+        echo "Set MODEL_BENCH_USE_RUNNING=1 only if it is safe to borrow." >&2
+        exit 1
+      fi
+      echo "Borrowing already-running $ACTIVE_MODEL; it will be left running."
+      ;;
+    stopped)
+      "$MODELCTL" start "$ACTIVE_MODEL"
+      OWNED_SERVER=1
+      ;;
+    *)
+      echo "$ACTIVE_MODEL is not ready to run: state=$state" >&2
+      exit 1
+      ;;
+  esac
+}
+
+write_opencode_config() {
+  local source="$1"
+  local entry="$2"
+  local endpoint_json="$3"
+  local provider
+  local provider_model
+  local api_model
+  local base_url
+  local context
+  local output
+  local label
+
+  provider="$(jq -r '.provider' <<<"$entry")"
+  provider_model="$(jq -r '.provider_model' <<<"$entry")"
+  label="$(jq -r '.label' <<<"$entry")"
+  api_model="$(jq -er '.api_model' <<<"$endpoint_json")"
+  base_url="$(jq -er '.base_url' <<<"$endpoint_json")"
+  context="$(jq -er '.context' <<<"$endpoint_json")"
+  output="$(jq -er '.output // 32768' <<<"$endpoint_json")"
+  [[ "$OUTPUT_LIMIT" =~ ^[1-9][0-9]*$ ]] || {
+    echo "MODEL_BENCH_OUTPUT_LIMIT must be a positive integer." >&2
+    return 1
+  }
+  (( OUTPUT_LIMIT < output )) && output="$OUTPUT_LIMIT"
+
+  jq -n \
+    --arg provider "$provider" \
+    --arg provider_model "$provider_model" \
+    --arg api_model "$api_model" \
+    --arg base_url "$base_url" \
+    --arg label "$label" \
+    --argjson context "$context" \
+    --argjson output "$output" \
+    --argjson tool_call "$(jq '.tool_call' <<<"$entry")" \
+    --argjson reasoning "$(jq '.reasoning' <<<"$entry")" \
+    '{
+      "$schema": "https://opencode.ai/config.json",
+      provider: {
+        ($provider): {
+          npm: "@ai-sdk/openai-compatible",
+          name: $label,
+          options: {baseURL: $base_url},
+          models: {
+            ($provider_model): {
+              id: $api_model,
+              name: $label,
+              limit: {context: $context, output: $output},
+              tool_call: $tool_call,
+              reasoning: $reasoning
+            }
+          }
+        }
+      },
+      compaction: {
+        auto: true,
+        prune: true,
+        reserved: 10000
+      },
+      agent: {
+        build: {
+          description: "Benchmark build agent: implement synchronously in this session",
+          mode: "primary",
+          tools: {task: false}
+        }
+      }
+    }' >"$source/config/opencode.benchmark.json"
+}
+
+direct_api_preflight() {
+  local endpoint_json="$1"
+  local base_url
+  local api_model
+  local response
+
+  base_url="$(jq -r '.base_url' <<<"$endpoint_json")"
+  api_model="$(jq -r '.api_model' <<<"$endpoint_json")"
+  curl -fsS --max-time 10 "$base_url/models" | jq -e --arg model "$api_model" \
+    '.data | any(.id == $model)' >/dev/null
+  response="$(curl -fsS --max-time 180 "$base_url/chat/completions" \
+    -H 'Content-Type: application/json' \
+    -d "$(jq -n --arg model "$api_model" '{model: $model, messages: [{role: "user", content: "Reply with exactly READY."}], max_tokens: 64, stream: false}')")"
+  jq -e '.choices[0].message.content | strings | length > 0' <<<"$response" >/dev/null
+  echo "Direct OpenAI-compatible completion succeeded."
+}
+
+opencode_preflight() {
+  local source="$1"
+  local entry="$2"
+  local scratch="$3"
+  local model_id
+  local permission
+
+  model_id="$(jq -r '.provider + "/" + .provider_model' <<<"$entry")"
+  permission='{"bash":{"*":"allow"},"edit":{"*":"allow"},"external_directory":{"*":"deny"},"glob":{"*":"allow"},"grep":{"*":"allow"},"list":{"*":"allow"},"read":{"*":"allow"},"todowrite":{"*":"allow"},"webfetch":{"*":"deny"},"websearch":{"*":"deny"}}'
+  mkdir -p "$scratch/project" "$scratch/xdg/opencode"
+  (
+    cd "$scratch/project"
+    OPENCODE_CONFIG="$source/config/opencode.benchmark.json" \
+      XDG_CONFIG_HOME="$scratch/xdg" \
+      OPENCODE_PERMISSION="$permission" \
+      opencode run --agent build --format json -m "$model_id" \
+      'Create PRECHECK.txt containing exactly modelbench-ready followed by a newline. Use a file-writing tool, then stop.' \
+      >"$scratch/opencode.ndjson" 2>"$scratch/opencode.stderr.log"
+  )
+  [[ "$(tr -d '\r\n' <"$scratch/project/PRECHECK.txt" 2>/dev/null)" == modelbench-ready ]] || {
+    echo "OpenCode preflight did not create the expected file." >&2
+    return 1
+  }
+  echo "OpenCode tool-use preflight succeeded."
+}
+
+preflight_model() {
+  local run_root="$1"
+  local entry="$2"
+  local source="$3"
+  local endpoint_json
+
+  endpoint_json="$("$MODELCTL" endpoint "$ACTIVE_MODEL" --json)"
+  jq -e '.api_model != null and .context != null' <<<"$endpoint_json" >/dev/null || {
+    echo "Incomplete endpoint metadata for $ACTIVE_MODEL" >&2
+    return 1
+  }
+  write_opencode_config "$source" "$entry" "$endpoint_json"
+  direct_api_preflight "$endpoint_json"
+  opencode_preflight "$source" "$entry" "$run_root/preflight"
+}
+
+write_run_manifest() {
+  local run_root="$1"
+  local entry="$2"
+  local endpoint_json="$3"
+  local revision
+  revision="$(source_revision)"
+  jq -n \
+    --arg started_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    --arg revision "$revision" \
+    --arg opencode_version "$(opencode --version 2>/dev/null || echo unknown)" \
+    --arg macos_version "$(sw_vers -productVersion)" \
+    --arg hardware "$(sysctl -n machdep.cpu.brand_string 2>/dev/null || uname -m)" \
+    --argjson phase_timeout "$PHASE_TIMEOUT_SECONDS" \
+    --argjson output_limit "$OUTPUT_LIMIT" \
+    --argjson model "$entry" \
+    --argjson endpoint "$endpoint_json" \
+    '{started_at: $started_at, upstream_revision: $revision, opencode_version: $opencode_version, macos_version: $macos_version, hardware: $hardware, phase_timeout_seconds: $phase_timeout, output_limit: $output_limit, model: $model, endpoint: $endpoint}' \
+    >"$run_root/manifest.json"
+}
+
+run_benchmark() {
+  local entry="$1"
+  local source="$2"
+  local timestamp
+  local slug
+  local run_root
+  local endpoint_json
+  local model_id
+  local runner
+
+  timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  slug="$(jq -r '.slug' <<<"$entry")"
+  run_root="$RUNS_ROOT/$timestamp-$slug"
+  mkdir -p "$run_root"
+  endpoint_json="$("$MODELCTL" endpoint "$ACTIVE_MODEL" --json)"
+  write_opencode_config "$source" "$entry" "$endpoint_json"
+  write_run_manifest "$run_root" "$entry" "$endpoint_json"
+  preflight_model "$run_root" "$entry" "$source"
+
+  jq -n \
+    --arg slug "$slug" \
+    --arg label "$(jq -r '.label' <<<"$entry")" \
+    --arg model_id "$(jq -r '.provider + "/" + .provider_model' <<<"$entry")" \
+    --arg billing "$(jq -r '.billing' <<<"$entry")" \
+    '{models: [{slug: $slug, label: $label, harness: "opencode", model_id: $model_id, billing: $billing, rates_per_m: {input: 0, cache_read: 0, cache_write: 0, output: 0}}]}' \
+    >"$run_root/models.json"
+
+  model_id="$(jq -r '.slug' <<<"$entry")"
+  runner="$source/scripts/run_benchmark_v2.py"
+  echo "Starting three-phase benchmark. Results: $run_root"
+  MODEL_BENCH_RUNNER="$runner" MODEL_BENCH_PHASE_TIMEOUT_SECONDS="$PHASE_TIMEOUT_SECONDS" \
+    uv run --python 3.12 python -c \
+      'import os, runpy; ns = runpy.run_path(os.environ["MODEL_BENCH_RUNNER"], run_name="modelbench_upstream"); ns["PHASE_TIMEOUT"] = int(os.environ["MODEL_BENCH_PHASE_TIMEOUT_SECONDS"]); ns["main"]()' \
+      --model "$model_id" \
+      --config "$run_root/models.json" \
+      --results-dir "$run_root/results" \
+      2>&1 | tee "$run_root/benchmark.log"
+  if rg -Fq -- "$OPENROUTER_API_KEY" "$run_root"; then
+    touch "$run_root/SECRET_LEAK_DETECTED"
+    echo "A benchmark artifact contains the OpenRouter key; rotate it and inspect $run_root." >&2
+    return 1
+  fi
+  echo "Benchmark completed: $run_root"
+}
+
+latest_run() {
+  local latest
+  latest="$(find "$RUNS_ROOT" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort | tail -1)"
+  [[ -n "$latest" ]] || { echo "No benchmark runs found." >&2; exit 1; }
+  printf '%s\n' "$latest"
+}
+
+main() {
+  local command_name="${1:-}"
+  local entry
+  local source
+  local run_root
+
+  for dependency in curl git jq opencode rg tar uv; do require_command "$dependency"; done
+  [[ -x "$MODELCTL" ]] || { echo "Missing modelctl: $MODELCTL" >&2; exit 1; }
+
+  case "$command_name" in
+    prepare)
+      prepare_upstream
+      ;;
+    preflight|run)
+      [[ -n "${2:-}" ]] || { usage >&2; exit 2; }
+      ACTIVE_MODEL="$2"
+      entry="$(model_entry "$ACTIVE_MODEL")" || {
+        echo "Model is not configured for this benchmark: $ACTIVE_MODEL" >&2
+        exit 2
+      }
+      if [[ "$command_name" == run ]]; then
+        load_benchmark_secret
+        [[ -n "${OPENROUTER_API_KEY:-}" ]] || {
+          echo "OPENROUTER_API_KEY is required for the benchmark app's live validation." >&2
+          echo "Export a scoped key, or place it in $BENCHMARK_ENV_FILE with mode 600." >&2
+          exit 1
+        }
+      fi
+      acquire_lock
+      trap cleanup EXIT INT TERM
+      wait_for_idle_machine
+      ensure_target_server
+      prepare_upstream
+      source="$(source_dir)"
+      if [[ "$command_name" == preflight ]]; then
+        run_root="$(mktemp -d "$STATE_ROOT/preflight.XXXXXX")"
+        preflight_model "$run_root" "$entry" "$source"
+        echo "Preflight artifacts: $run_root"
+      else
+        run_benchmark "$entry" "$source"
+      fi
+      ;;
+    latest)
+      latest_run
+      ;;
+    help|-h|--help|'')
+      usage
+      ;;
+    *)
+      echo "Unknown command: $command_name" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+}
+
+main "$@"

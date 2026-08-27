@@ -33,7 +33,7 @@ Available services:
 
 - `qwen3.8-27b` on port 8080; this is the Qwen Code backend.
 - `qwen3.8-27b-mlxfast-mtp-server` on port 8083; native MLX.fast MTP for
-  OpenAI-compatible clients.
+  OpenAI-compatible clients and `modelbench`.
 - `qwen3.6-35b-a3b` on port 8081.
 - `deepseek-v4-flash` on port 8000.
 - `minimax-h3-standard` on port 11234.
@@ -107,6 +107,21 @@ modelctl endpoint qwen3.8-27b --json
 Service endpoint metadata includes `context` and the model's advertised
 `output` ceiling. Benchmark clients may request a lower per-response policy;
 the Qwen adapter enforces the remaining-context clamp at request time.
+
+## Coding benchmark
+
+`modelbench` runs the pinned three-phase LLM coding benchmark against one local
+server at a time. Runtime checkouts, generated projects, and raw transcripts
+stay under `~/Library/Application Support/local-models/benchmarks/`.
+
+```bash
+modelbench prepare
+modelbench preflight qwen3.8-27b
+modelbench run qwen3.8-27b
+```
+
+See [`benchmarks/llm-coding/README.md`](benchmarks/llm-coding/README.md) for the
+ownership, isolation, and secret-handling rules.
 
 ## Muse Glimmer reference harness
 

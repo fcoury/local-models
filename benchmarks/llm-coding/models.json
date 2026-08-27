@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "models": [
+    {
+      "modelctl_id": "qwen3.8-27b",
+      "slug": "qwen3_8_27b_q8_m5",
+      "label": "Qwen 3.8 27B dense Q8 (local Apple Silicon)",
+      "provider": "local-models",
+      "provider_model": "qwen3.8-27b",
+      "tool_call": true,
+      "reasoning": true,
+      "billing": "Local Apple Silicon"
+    },
+    {
+      "modelctl_id": "qwen3.8-27b-mlxfast-mtp-server",
+      "slug": "qwen3_8_27b_mlxfast_mtp_server",
+      "label": "Qwen 3.8 27B MLX.fast native MTP",
+      "provider": "local-models",
+      "provider_model": "qwen3.8-27b-mlxfast-mtp-server",
+      "tool_call": true,
+      "reasoning": true,
+      "billing": "Local Apple Silicon"
+    }
+  ]
+}
