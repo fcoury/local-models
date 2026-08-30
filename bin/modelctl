@@ -10,6 +10,10 @@ MUSE_GLIMMER_HARNESS_DIR="$MUSE_GLIMMER_HARNESS_REPO/agentic-fundamentals"
 MUSE_GLIMMER_HARNESS_VENV="${MUSE_GLIMMER_HARNESS_VENV:-$MODEL_HOME/runtime/muse-glimmer-harness-venv}"
 QWEN_FIXED_TEMPLATE="$MODEL_HOME/templates/qwen3.8/froggeric-v22.4.jinja"
 QWEN_FIXED_TEMPLATE_SHA256="696c4f110ae05f349f381b9c7f3ef40172adc369e918f18738fec0036d14fc7b"
+GLM53_DS4_ROOT="${GLM53_DS4_ROOT:-$HOME/code/ds4-glm-5.3-flash}"
+GLM53_DS4_COMMIT="a3db66feefb624585277c33261c52e6521e76421"
+GLM53_MODEL_BYTES="96505816384"
+GLM53_MODEL_SHA256="e81fd6241c6e55a64e1e14e47a3eab61a173fa8d7e4b5c1d1848827119705b32"
 
 if [[ "${1:-}" != __complete ]]; then
   mkdir -p "$LOG_DIR" "$PID_DIR"
@@ -23,6 +27,7 @@ qwen3.8-27b-mlxfast-mtp
 qwen3.8-27b-mlxfast-mtp-server
 qwen3.6-35b-a3b
 deepseek-v4-flash
+glm-5.3-flash-q2
 minimax-h3-standard
 minimax-h3-heretic
 minimax-h3-comfy
@@ -69,6 +74,7 @@ label() {
     qwen3.8-27b-mlxfast-mtp-server) echo "Qwen3.8 27B MLX.fast native MTP OpenAI server" ;;
     qwen3.6-35b-a3b) echo "Qwen3.6 35B A3B OptiQ 4-bit (MLX)" ;;
     deepseek-v4-flash) echo "DeepSeek V4 Flash IQ2XXS 0731 (DS4)" ;;
+    glm-5.3-flash-q2) echo "GLM 5.3 Flash Q2 (DS4)" ;;
     minimax-h3-standard) echo "MiniMax H3 standard 4-bit (MLX)" ;;
     minimax-h3-heretic) echo "MiniMax H3 Ultra-Heretic TE8 4-bit (MLX)" ;;
     minimax-h3-comfy) echo "MiniMax H3 ComfyUI int8 assets" ;;
@@ -86,7 +92,7 @@ label() {
 
 kind() {
   case "$1" in
-    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|minimax-h3-standard|minimax-h3-heretic|muse-glimmer-30b-server)
+    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|glm-5.3-flash-q2|minimax-h3-standard|minimax-h3-heretic|muse-glimmer-30b-server)
       echo service
       ;;
     muse-glimmer-30b|qwen3.8-27b-mlxfast-mtp)
@@ -105,6 +111,7 @@ port() {
     qwen3.8-27b-mlxfast-mtp-server) echo 8083 ;;
     qwen3.6-35b-a3b) echo 8081 ;;
     deepseek-v4-flash) echo 8000 ;;
+    glm-5.3-flash-q2) echo 8004 ;;
     minimax-h3-standard) echo 11234 ;;
     minimax-h3-heretic) echo 11235 ;;
     muse-glimmer-30b-server) echo 8082 ;;
@@ -118,6 +125,7 @@ api_model() {
     qwen3.8-27b-fixed-v22-4) echo 'qwen3.8-27b-q8-fixed-v22.4' ;;
     qwen3.8-27b-mlxfast-mtp-server) echo 'qwen3.8-27b-mlxfast-mtp-server' ;;
     qwen3.6-35b-a3b) echo 'mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit' ;;
+    glm-5.3-flash-q2) echo 'glm-5.3-flash' ;;
     muse-glimmer-30b-server) echo 'muse-glimmer' ;;
     *) return 1 ;;
   esac
@@ -128,13 +136,14 @@ context_size() {
     qwen3.8-27b|qwen3.8-27b-fixed-v22-4|muse-glimmer-30b-server) echo 131072 ;;
     qwen3.8-27b-mlxfast-mtp-server) echo 40960 ;;
     deepseek-v4-flash) echo 250000 ;;
+    glm-5.3-flash-q2) echo 65536 ;;
     *) return 1 ;;
   esac
 }
 
 output_size() {
   case "$1" in
-    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|muse-glimmer-30b-server)
+    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|glm-5.3-flash-q2|muse-glimmer-30b-server)
       echo 32768
       ;;
     *) return 1 ;;
@@ -191,6 +200,7 @@ model_path() {
     qwen3.8-27b-mlxfast-mtp-server) echo "$MODEL_HOME/mlx/qwen/qwen3.8-27b-mlxfast-mtp" ;;
     qwen3.6-35b-a3b) echo "$MODEL_HOME/aliases/qwen3.6-35b-a3b-mlx" ;;
     deepseek-v4-flash) echo "$MODEL_HOME/aliases/deepseek-v4-flash-current.gguf" ;;
+    glm-5.3-flash-q2) echo "$MODEL_HOME/gguf/glm-5.3-flash-antirez/GLM-5.3-Flash-Q2.gguf" ;;
     minimax-h3-standard) echo "$MODEL_HOME/mlx/minimax-h3/standard-4bit" ;;
     minimax-h3-heretic) echo "$MODEL_HOME/mlx/minimax-h3/heretic-4bit" ;;
     minimax-h3-comfy) echo "$MODEL_HOME/diffusers/minimax/h3-comfy" ;;
@@ -225,6 +235,14 @@ ready() {
       ;;
     deepseek-v4-flash)
       [[ -f "$MODEL_HOME/aliases/deepseek-v4-flash-current.gguf" && -x "$HOME/code/ds4/ds4-server" ]]
+      ;;
+    glm-5.3-flash-q2)
+      [[ -f "$(model_path "$id")" &&
+        "$(/usr/bin/stat -f '%z' "$(model_path "$id")")" == "$GLM53_MODEL_BYTES" &&
+        -x "$GLM53_DS4_ROOT/ds4-server" &&
+        "$(git -C "$GLM53_DS4_ROOT" rev-parse HEAD 2>/dev/null)" == "$GLM53_DS4_COMMIT" ]] &&
+        git -C "$GLM53_DS4_ROOT" diff --quiet HEAD -- &&
+        make -q -C "$GLM53_DS4_ROOT" ds4-server
       ;;
     qwen3.6-35b-a3b)
       [[ -f "$MODEL_HOME/aliases/qwen3.6-35b-a3b-mlx/config.json" && -x "$MODEL_HOME/runtime/mlx-lm-venv/bin/mlx_lm.server" ]]
@@ -274,6 +292,10 @@ healthy() {
   case "$id" in
     qwen3.8-27b)
       curl -fsS --max-time 2 "http://127.0.0.1:$service_port/health" >/dev/null 2>&1
+      ;;
+    glm-5.3-flash-q2)
+      curl -fsS --max-time 2 "http://127.0.0.1:$service_port/v1/models" 2>/dev/null |
+        jq -e '.data | any(.id == "glm-5.3-flash")' >/dev/null 2>&1
       ;;
     *)
       curl -fsS --max-time 2 "http://127.0.0.1:$service_port/v1/models" >/dev/null 2>&1
@@ -397,6 +419,20 @@ run_model() {
         --kv-disk-dir "$ds4_kv_dir" \
         --kv-disk-space-mb 8192
       ;;
+    glm-5.3-flash-q2)
+      local glm53_kv_dir="$STATE_HOME/kv/glm-5.3-flash-q2"
+      mkdir -p "$glm53_kv_dir"
+      cd "$GLM53_DS4_ROOT"
+      exec "$GLM53_DS4_ROOT/ds4-server" \
+        --backend metal \
+        --model "$(model_path "$id")" \
+        --ctx 65536 \
+        --tokens 32768 \
+        --host 127.0.0.1 \
+        --port 8004 \
+        --kv-disk-dir "$glm53_kv_dir" \
+        --kv-disk-space-mb 8192
+      ;;
     minimax-h3-standard|minimax-h3-heretic)
       exec "$HOME/code/minimax-h3-mlx/runtime/mlx-serve" \
         --model "$(model_path "$id")" \
@@ -480,6 +516,7 @@ status_one() {
 startup_timeout() {
   case "$1" in
     qwen3.8-27b-mlxfast-mtp-server) echo 600 ;;
+    glm-5.3-flash-q2) echo 180 ;;
     *) echo 45 ;;
   esac
 }
@@ -533,6 +570,7 @@ start_model() {
     -- /usr/bin/env \
       "MODEL_HOME=$MODEL_HOME" \
       "LOCAL_MODEL_STATE_HOME=$STATE_HOME" \
+      "GLM53_DS4_ROOT=$GLM53_DS4_ROOT" \
       "PATH=$PATH" \
       "$self" __run "$id"
 
@@ -608,6 +646,14 @@ doctor() {
       if ! "$MUSE_GLIMMER_HARNESS_VENV/bin/python" \
         "$MUSE_GLIMMER_HARNESS_DIR/response_parser.py"; then
         echo "Muse Glimmer parser checks failed." >&2
+        return 1
+      fi
+    fi
+    if [[ "$requested_id" == glm-5.3-flash-q2 ]]; then
+      local actual_sha256
+      actual_sha256="$(shasum -a 256 "$(model_path "$requested_id")" | awk '{ print $1 }')"
+      if [[ "$actual_sha256" != "$GLM53_MODEL_SHA256" ]]; then
+        echo "GLM 5.3 model SHA-256 mismatch: $actual_sha256" >&2
         return 1
       fi
     fi

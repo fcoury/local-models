@@ -42,12 +42,33 @@ Available services:
   OpenAI-compatible clients and `modelbench`.
 - `qwen3.6-35b-a3b` on port 8081.
 - `deepseek-v4-flash` on port 8000.
+- `glm-5.3-flash-q2` on port 8004; text-only DS4 baseline for controlled
+  Vibebench evaluations.
 - `minimax-h3-standard` on port 11234.
 - `minimax-h3-heretic` on port 11235.
 
 Run `modelctl doctor` after moving or updating models. The complete inventory,
 including non-server assets and application-managed models, is in
 `models.toml`.
+
+## GLM 5.3 Flash evaluation profile
+
+`glm-5.3-flash-q2` serves the pinned Q2 GGUF through the qualified DS4 GLM
+runtime at `http://127.0.0.1:8004/v1`. The profile advertises API model
+`glm-5.3-flash`, uses a 65,536-token context and 32,768-token output ceiling,
+and leaves embedded MTP and the separate vision encoder disabled so coding
+evaluations change only the model.
+
+```bash
+modelctl doctor glm-5.3-flash-q2
+modelctl endpoint glm-5.3-flash-q2 --json
+modelctl start glm-5.3-flash-q2
+modelctl stop glm-5.3-flash-q2
+```
+
+The readiness check pins the DS4 source commit, verifies that the server binary
+is current, and checks the model's exact byte size. `doctor` additionally
+verifies the full 96.5 GB SHA-256, so it is intentionally slower than `status`.
 
 ## Qwen fixed-template comparison profile
 
