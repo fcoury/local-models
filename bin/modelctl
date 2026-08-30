@@ -28,6 +28,7 @@ qwen3.8-27b-mlxfast-mtp-server
 qwen3.6-35b-a3b
 deepseek-v4-flash
 glm-5.3-flash-q2
+glm-5.3-flash-q2-131k
 minimax-h3-standard
 minimax-h3-heretic
 minimax-h3-comfy
@@ -74,7 +75,8 @@ label() {
     qwen3.8-27b-mlxfast-mtp-server) echo "Qwen3.8 27B MLX.fast native MTP OpenAI server" ;;
     qwen3.6-35b-a3b) echo "Qwen3.6 35B A3B OptiQ 4-bit (MLX)" ;;
     deepseek-v4-flash) echo "DeepSeek V4 Flash IQ2XXS 0731 (DS4)" ;;
-    glm-5.3-flash-q2) echo "GLM 5.3 Flash Q2 (DS4)" ;;
+    glm-5.3-flash-q2) echo "GLM 5.3 Flash Q2 65K (DS4)" ;;
+    glm-5.3-flash-q2-131k) echo "GLM 5.3 Flash Q2 131K (DS4)" ;;
     minimax-h3-standard) echo "MiniMax H3 standard 4-bit (MLX)" ;;
     minimax-h3-heretic) echo "MiniMax H3 Ultra-Heretic TE8 4-bit (MLX)" ;;
     minimax-h3-comfy) echo "MiniMax H3 ComfyUI int8 assets" ;;
@@ -92,7 +94,7 @@ label() {
 
 kind() {
   case "$1" in
-    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|glm-5.3-flash-q2|minimax-h3-standard|minimax-h3-heretic|muse-glimmer-30b-server)
+    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|glm-5.3-flash-q2|glm-5.3-flash-q2-131k|minimax-h3-standard|minimax-h3-heretic|muse-glimmer-30b-server)
       echo service
       ;;
     muse-glimmer-30b|qwen3.8-27b-mlxfast-mtp)
@@ -112,6 +114,7 @@ port() {
     qwen3.6-35b-a3b) echo 8081 ;;
     deepseek-v4-flash) echo 8000 ;;
     glm-5.3-flash-q2) echo 8004 ;;
+    glm-5.3-flash-q2-131k) echo 8007 ;;
     minimax-h3-standard) echo 11234 ;;
     minimax-h3-heretic) echo 11235 ;;
     muse-glimmer-30b-server) echo 8082 ;;
@@ -125,7 +128,7 @@ api_model() {
     qwen3.8-27b-fixed-v22-4) echo 'qwen3.8-27b-q8-fixed-v22.4' ;;
     qwen3.8-27b-mlxfast-mtp-server) echo 'qwen3.8-27b-mlxfast-mtp-server' ;;
     qwen3.6-35b-a3b) echo 'mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit' ;;
-    glm-5.3-flash-q2) echo 'glm-5.3-flash' ;;
+    glm-5.3-flash-q2|glm-5.3-flash-q2-131k) echo 'glm-5.3-flash' ;;
     muse-glimmer-30b-server) echo 'muse-glimmer' ;;
     *) return 1 ;;
   esac
@@ -137,13 +140,14 @@ context_size() {
     qwen3.8-27b-mlxfast-mtp-server) echo 40960 ;;
     deepseek-v4-flash) echo 250000 ;;
     glm-5.3-flash-q2) echo 65536 ;;
+    glm-5.3-flash-q2-131k) echo 131072 ;;
     *) return 1 ;;
   esac
 }
 
 output_size() {
   case "$1" in
-    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|glm-5.3-flash-q2|muse-glimmer-30b-server)
+    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|glm-5.3-flash-q2|glm-5.3-flash-q2-131k|muse-glimmer-30b-server)
       echo 32768
       ;;
     *) return 1 ;;
@@ -200,7 +204,7 @@ model_path() {
     qwen3.8-27b-mlxfast-mtp-server) echo "$MODEL_HOME/mlx/qwen/qwen3.8-27b-mlxfast-mtp" ;;
     qwen3.6-35b-a3b) echo "$MODEL_HOME/aliases/qwen3.6-35b-a3b-mlx" ;;
     deepseek-v4-flash) echo "$MODEL_HOME/aliases/deepseek-v4-flash-current.gguf" ;;
-    glm-5.3-flash-q2) echo "$MODEL_HOME/gguf/glm-5.3-flash-antirez/GLM-5.3-Flash-Q2.gguf" ;;
+    glm-5.3-flash-q2|glm-5.3-flash-q2-131k) echo "$MODEL_HOME/gguf/glm-5.3-flash-antirez/GLM-5.3-Flash-Q2.gguf" ;;
     minimax-h3-standard) echo "$MODEL_HOME/mlx/minimax-h3/standard-4bit" ;;
     minimax-h3-heretic) echo "$MODEL_HOME/mlx/minimax-h3/heretic-4bit" ;;
     minimax-h3-comfy) echo "$MODEL_HOME/diffusers/minimax/h3-comfy" ;;
@@ -236,7 +240,7 @@ ready() {
     deepseek-v4-flash)
       [[ -f "$MODEL_HOME/aliases/deepseek-v4-flash-current.gguf" && -x "$HOME/code/ds4/ds4-server" ]]
       ;;
-    glm-5.3-flash-q2)
+    glm-5.3-flash-q2|glm-5.3-flash-q2-131k)
       [[ -f "$(model_path "$id")" &&
         "$(/usr/bin/stat -f '%z' "$(model_path "$id")")" == "$GLM53_MODEL_BYTES" &&
         -x "$GLM53_DS4_ROOT/ds4-server" &&
@@ -293,7 +297,7 @@ healthy() {
     qwen3.8-27b)
       curl -fsS --max-time 2 "http://127.0.0.1:$service_port/health" >/dev/null 2>&1
       ;;
-    glm-5.3-flash-q2)
+    glm-5.3-flash-q2|glm-5.3-flash-q2-131k)
       curl -fsS --max-time 2 "http://127.0.0.1:$service_port/v1/models" 2>/dev/null |
         jq -e '.data | any(.id == "glm-5.3-flash")' >/dev/null 2>&1
       ;;
@@ -333,6 +337,25 @@ require_qwen_variant_peer_stopped() {
   [[ -n "$peer" ]] || return 0
   if service_loaded "$peer" || listening "$peer"; then
     echo "$id reuses the same Qwen weights as $peer; stop $peer before starting this profile." >&2
+    return 1
+  fi
+}
+
+glm_variant_peer() {
+  case "$1" in
+    glm-5.3-flash-q2) echo glm-5.3-flash-q2-131k ;;
+    glm-5.3-flash-q2-131k) echo glm-5.3-flash-q2 ;;
+    *) return 1 ;;
+  esac
+}
+
+require_glm_variant_peer_stopped() {
+  local id="$1"
+  local peer
+  peer="$(glm_variant_peer "$id" 2>/dev/null || true)"
+  [[ -n "$peer" ]] || return 0
+  if service_loaded "$peer" || listening "$peer"; then
+    echo "$id reuses the same GLM weights as $peer; stop $peer before starting this profile." >&2
     return 1
   fi
 }
@@ -419,17 +442,18 @@ run_model() {
         --kv-disk-dir "$ds4_kv_dir" \
         --kv-disk-space-mb 8192
       ;;
-    glm-5.3-flash-q2)
-      local glm53_kv_dir="$STATE_HOME/kv/glm-5.3-flash-q2"
+    glm-5.3-flash-q2|glm-5.3-flash-q2-131k)
+      require_glm_variant_peer_stopped "$id"
+      local glm53_kv_dir="$STATE_HOME/kv/$id"
       mkdir -p "$glm53_kv_dir"
       cd "$GLM53_DS4_ROOT"
       exec "$GLM53_DS4_ROOT/ds4-server" \
         --backend metal \
         --model "$(model_path "$id")" \
-        --ctx 65536 \
-        --tokens 32768 \
+        --ctx "$(context_size "$id")" \
+        --tokens "$(output_size "$id")" \
         --host 127.0.0.1 \
-        --port 8004 \
+        --port "$(port "$id")" \
         --kv-disk-dir "$glm53_kv_dir" \
         --kv-disk-space-mb 8192
       ;;
@@ -516,7 +540,7 @@ status_one() {
 startup_timeout() {
   case "$1" in
     qwen3.8-27b-mlxfast-mtp-server) echo 600 ;;
-    glm-5.3-flash-q2) echo 180 ;;
+    glm-5.3-flash-q2|glm-5.3-flash-q2-131k) echo 180 ;;
     *) echo 45 ;;
   esac
 }
@@ -543,6 +567,7 @@ start_model() {
     exit 1
   fi
   require_qwen_variant_peer_stopped "$id"
+  require_glm_variant_peer_stopped "$id"
   if listening "$id"; then
     echo "$id already has a listener on port $(port "$id")."
     status_one "$id"
@@ -649,7 +674,7 @@ doctor() {
         return 1
       fi
     fi
-    if [[ "$requested_id" == glm-5.3-flash-q2 ]]; then
+    if [[ "$requested_id" == glm-5.3-flash-q2 || "$requested_id" == glm-5.3-flash-q2-131k ]]; then
       local actual_sha256
       actual_sha256="$(shasum -a 256 "$(model_path "$requested_id")" | awk '{ print $1 }')"
       if [[ "$actual_sha256" != "$GLM53_MODEL_SHA256" ]]; then

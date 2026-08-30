@@ -94,6 +94,29 @@ consumer = "Vibebench LittleCoder evaluations"
 notes = "Text-only ordinary-decoding baseline. The separately verified F16 vision encoder is not loaded for coding evals."
 
 [[models]]
+id = "glm-5.3-flash-q2-131k"
+name = "GLM 5.3 Flash Q2 131K"
+format = "GGUF"
+runner = "ds4"
+path = "gguf/glm-5.3-flash-antirez/GLM-5.3-Flash-Q2.gguf"
+port = 8007
+context = 131072
+output = 32768
+status = "ready"
+api_model = "glm-5.3-flash"
+bytes = 96505816384
+sha256 = "e81fd6241c6e55a64e1e14e47a3eab61a173fa8d7e4b5c1d1848827119705b32"
+source = "antirez/glm-5.3-flash-gguf"
+source_revision = "b2fa29d7a6b410db11221c904973967b80b760f5"
+runtime_path = "~/code/ds4-glm-5.3-flash"
+runtime_commit = "a3db66feefb624585277c33261c52e6521e76421"
+vision = false
+mtp = false
+variant_of = "glm-5.3-flash-q2"
+consumer = "Vibebench LittleCoder long-context evaluations"
+notes = "Text-only ordinary-decoding 131K evaluation profile. Mutually exclusive with the 65K baseline because both reuse the same large weights."
+
+[[models]]
 id = "minimax-h3-standard"
 name = "MiniMax H3 standard 4-bit"
 format = "MLX"
