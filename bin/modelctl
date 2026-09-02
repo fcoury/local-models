@@ -377,6 +377,10 @@ run_omp() {
   local selector
   local owned_server=false
 
+  if [[ "$(omp_family "$id")" == glm-ds4 ]]; then
+    export PI_EDIT_VARIANT="${PI_EDIT_VARIANT:-replace}"
+  fi
+
   command -v omp >/dev/null 2>&1 || {
     echo "omp is required for modelctl omp." >&2
     return 1
