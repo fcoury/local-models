@@ -9,7 +9,7 @@ function __modelctl_complete_models
 end
 
 function __modelctl_needs_command
-    not __fish_seen_subcommand_from list status start run stop logs path endpoint doctor help
+    not __fish_seen_subcommand_from list status start run stop logs path endpoint omp doctor help
 end
 
 function __modelctl_needs_model
@@ -18,7 +18,7 @@ function __modelctl_needs_model
 
     test (count $tokens) -eq 2; or return 1
     string match -q -- '-*' "$current"; and return 1
-    __fish_seen_subcommand_from status start run stop logs path endpoint doctor
+    __fish_seen_subcommand_from status start run stop logs path endpoint omp doctor
 end
 
 function __modelctl_endpoint_options
@@ -53,7 +53,7 @@ function __modelctl_no_file_completion
     set -l tokens (commandline -opc)
 
     test (count $tokens) -le 2; and return 0
-    __fish_seen_subcommand_from run; and return 1
+    __fish_seen_subcommand_from run omp; and return 1
     return 0
 end
 
@@ -69,6 +69,7 @@ complete -c modelctl -n __modelctl_needs_command -f -a stop -d 'Stop a server st
 complete -c modelctl -n __modelctl_needs_command -f -a logs -d 'Follow a model server log'
 complete -c modelctl -n __modelctl_needs_command -f -a path -d 'Print the canonical model path'
 complete -c modelctl -n __modelctl_needs_command -f -a endpoint -d 'Print OpenAI-compatible endpoint metadata'
+complete -c modelctl -n __modelctl_needs_command -f -a omp -d 'Run OMP with generated local-model metadata'
 complete -c modelctl -n __modelctl_needs_command -f -a doctor -d 'Validate models and their runtimes'
 complete -c modelctl -n __modelctl_needs_command -f -a help -d 'Show help'
 complete -c modelctl -n __modelctl_needs_command -f -s h -l help -d 'Show help'
@@ -79,6 +80,8 @@ complete -c modelctl -n '__modelctl_needs_model; and __fish_seen_subcommand_from
     -f -a '(__modelctl_complete_models runnable)'
 complete -c modelctl -n '__modelctl_needs_model; and __fish_seen_subcommand_from start stop logs endpoint' \
     -f -a '(__modelctl_complete_models services)'
+complete -c modelctl -n '__modelctl_needs_model; and __fish_seen_subcommand_from omp' \
+    -f -a '(__modelctl_complete_models omp)'
 
 complete -c modelctl -n __modelctl_endpoint_options -f -l json -d 'Print metadata as JSON'
 

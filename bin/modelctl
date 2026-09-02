@@ -5,11 +5,26 @@ MODEL_HOME="${MODEL_HOME:-$HOME/models}"
 STATE_HOME="${LOCAL_MODEL_STATE_HOME:-$HOME/Library/Application Support/local-models}"
 LOG_DIR="$STATE_HOME/logs"
 PID_DIR="$STATE_HOME/pids"
+OMP_AGENT_DIR="${MODELCTL_OMP_AGENT_DIR:-$STATE_HOME/omp-agent}"
 MUSE_GLIMMER_HARNESS_REPO="${MUSE_GLIMMER_HARNESS_REPO:-$HOME/code/meta-oss-cookbook}"
 MUSE_GLIMMER_HARNESS_DIR="$MUSE_GLIMMER_HARNESS_REPO/agentic-fundamentals"
 MUSE_GLIMMER_HARNESS_VENV="${MUSE_GLIMMER_HARNESS_VENV:-$MODEL_HOME/runtime/muse-glimmer-harness-venv}"
 QWEN_FIXED_TEMPLATE="$MODEL_HOME/templates/qwen3.8/froggeric-v22.4.jinja"
 QWEN_FIXED_TEMPLATE_SHA256="696c4f110ae05f349f381b9c7f3ef40172adc369e918f18738fec0036d14fc7b"
+QWEN38_FLASH_RUNTIME_ROOT="${QWEN38_FLASH_RUNTIME_ROOT:-$HOME/code/llama.cpp-qwen38-flash-next}"
+QWEN38_FLASH_RUNTIME_COMMIT="9723942adc518b43c4b95dc4dce6906903eb5e09"
+QWEN38_FLASH_MODEL_DIR="$MODEL_HOME/gguf/qwen/qwen3.8-flash-next-unsloth-ud-iq4_xs"
+QWEN38_FLASH_SHARD_1="Qwen3.8-Flash-Next-UD-IQ4_XS-00001-of-00003.gguf"
+QWEN38_FLASH_SHARD_2="Qwen3.8-Flash-Next-UD-IQ4_XS-00002-of-00003.gguf"
+QWEN38_FLASH_SHARD_3="Qwen3.8-Flash-Next-UD-IQ4_XS-00003-of-00003.gguf"
+QWEN38_FLASH_MMPROJ="mmproj-F16.gguf"
+DEEPSEEK_DS4_ROOT="${DEEPSEEK_DS4_ROOT:-$HOME/code/ds4-deepseek-v4-vision}"
+DEEPSEEK_DS4_COMMIT="110afdd8886586f18fc9b28bc5533152dd10e728"
+DEEPSEEK_MODEL_BYTES="86720111776"
+DEEPSEEK_MODEL_SHA256="8f2d42c0071ccf8a98f391cc2b835fd123f12330690b3059dbb7707920e5ad9e"
+DEEPSEEK_VISION_PATH="$MODEL_HOME/gguf/deepseek/deepseek-v4-flash-vision/DeepSeek-V4-Flash-Vision-Encoder.gguf"
+DEEPSEEK_VISION_BYTES="932857760"
+DEEPSEEK_VISION_SHA256="00cd4d81a435364967400a95c42703343e11da6b6f18c5143fe76e1d94d5035f"
 GLM53_DS4_ROOT="${GLM53_DS4_ROOT:-$HOME/code/ds4-glm-5.3-flash}"
 GLM53_DS4_COMMIT="a3db66feefb624585277c33261c52e6521e76421"
 GLM53_MODEL_BYTES="96505816384"
@@ -23,6 +38,7 @@ models() {
   cat <<'EOF'
 qwen3.8-27b
 qwen3.8-27b-fixed-v22-4
+qwen3.8-flash-next-iq4-xs
 qwen3.8-27b-mlxfast-mtp
 qwen3.8-27b-mlxfast-mtp-server
 qwen3.6-35b-a3b
@@ -59,6 +75,10 @@ completion_models() {
       services)
         [[ "$model_kind" == service ]] || continue
         ;;
+      omp)
+        [[ "$model_kind" == service ]] || continue
+        omp_family "$id" >/dev/null 2>&1 || continue
+        ;;
       *)
         return 2
         ;;
@@ -71,10 +91,11 @@ label() {
   case "$1" in
     qwen3.8-27b) echo "Qwen3.8 27B Q8 (llama.cpp)" ;;
     qwen3.8-27b-fixed-v22-4) echo "Qwen3.8 27B Q8 + Froggeric fixed template v22.4" ;;
+    qwen3.8-flash-next-iq4-xs) echo "Qwen3.8 Flash Next UD-IQ4_XS 32K (pinned llama.cpp Metal)" ;;
     qwen3.8-27b-mlxfast-mtp) echo "Qwen3.8 27B MLX.fast native MTP harness" ;;
     qwen3.8-27b-mlxfast-mtp-server) echo "Qwen3.8 27B MLX.fast native MTP OpenAI server" ;;
     qwen3.6-35b-a3b) echo "Qwen3.6 35B A3B OptiQ 4-bit (MLX)" ;;
-    deepseek-v4-flash) echo "DeepSeek V4 Flash IQ2XXS 0731 (DS4)" ;;
+    deepseek-v4-flash) echo "DeepSeek V4 Flash Vision-Exp IQ2XXS (DS4)" ;;
     glm-5.3-flash-q2) echo "GLM 5.3 Flash Q2 65K (DS4)" ;;
     glm-5.3-flash-q2-131k) echo "GLM 5.3 Flash Q2 131K (DS4)" ;;
     minimax-h3-standard) echo "MiniMax H3 standard 4-bit (MLX)" ;;
@@ -94,7 +115,7 @@ label() {
 
 kind() {
   case "$1" in
-    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|glm-5.3-flash-q2|glm-5.3-flash-q2-131k|minimax-h3-standard|minimax-h3-heretic|muse-glimmer-30b-server)
+    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq4-xs|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|glm-5.3-flash-q2|glm-5.3-flash-q2-131k|minimax-h3-standard|minimax-h3-heretic|muse-glimmer-30b-server)
       echo service
       ;;
     muse-glimmer-30b|qwen3.8-27b-mlxfast-mtp)
@@ -110,6 +131,7 @@ port() {
   case "$1" in
     qwen3.8-27b) echo 8080 ;;
     qwen3.8-27b-fixed-v22-4) echo 8085 ;;
+    qwen3.8-flash-next-iq4-xs) echo 8084 ;;
     qwen3.8-27b-mlxfast-mtp-server) echo 8083 ;;
     qwen3.6-35b-a3b) echo 8081 ;;
     deepseek-v4-flash) echo 8000 ;;
@@ -126,6 +148,7 @@ api_model() {
   case "$1" in
     qwen3.8-27b) echo 'ggml-org/Qwen3.8-27B-GGUF:Q8_0' ;;
     qwen3.8-27b-fixed-v22-4) echo 'qwen3.8-27b-q8-fixed-v22.4' ;;
+    qwen3.8-flash-next-iq4-xs) echo 'qwen3.8-flash-next-iq4-xs' ;;
     qwen3.8-27b-mlxfast-mtp-server) echo 'qwen3.8-27b-mlxfast-mtp-server' ;;
     qwen3.6-35b-a3b) echo 'mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit' ;;
     glm-5.3-flash-q2|glm-5.3-flash-q2-131k) echo 'glm-5.3-flash' ;;
@@ -137,6 +160,7 @@ api_model() {
 context_size() {
   case "$1" in
     qwen3.8-27b|qwen3.8-27b-fixed-v22-4|muse-glimmer-30b-server) echo 131072 ;;
+    qwen3.8-flash-next-iq4-xs) echo 32768 ;;
     qwen3.8-27b-mlxfast-mtp-server) echo 40960 ;;
     deepseek-v4-flash) echo 250000 ;;
     glm-5.3-flash-q2) echo 65536 ;;
@@ -147,6 +171,9 @@ context_size() {
 
 output_size() {
   case "$1" in
+    qwen3.8-flash-next-iq4-xs)
+      echo 16384
+      ;;
     qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|glm-5.3-flash-q2|glm-5.3-flash-q2-131k|muse-glimmer-30b-server)
       echo 32768
       ;;
@@ -196,10 +223,202 @@ endpoint() {
   printf '%s\n' "$base_url"
 }
 
+omp_family() {
+  case "$1" in
+    deepseek-v4-flash) echo deepseek-ds4 ;;
+    glm-5.3-flash-q2|glm-5.3-flash-q2-131k) echo glm-ds4 ;;
+    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq4-xs|qwen3.8-27b-mlxfast-mtp-server) echo qwen ;;
+    *) return 1 ;;
+  esac
+}
+
+write_omp_models() {
+  local id="$1"
+  local endpoint_json
+  local base_url
+  local provider_model
+  local context
+  local output
+  local provider
+  local name
+  local family
+  local temporary
+
+  family="$(omp_family "$id")" || {
+    echo "$id does not have an OMP compatibility preset." >&2
+    return 2
+  }
+  endpoint_json="$(endpoint "$id" --json)"
+  base_url="$(jq -er '.base_url' <<<"$endpoint_json")"
+  provider_model="$(jq -r '.api_model // .id' <<<"$endpoint_json")"
+  context="$(jq -er '.context' <<<"$endpoint_json")"
+  output="$(jq -er '.output' <<<"$endpoint_json")"
+  provider="modelctl-${id//./-}"
+  name="$(label "$id")"
+
+  mkdir -p "$OMP_AGENT_DIR"
+  temporary="$(mktemp "$OMP_AGENT_DIR/models.yml.XXXXXX")"
+  case "$family" in
+    deepseek-ds4)
+      jq -n \
+        --arg provider "$provider" \
+        --arg base_url "$base_url" \
+        --arg model "$provider_model" \
+        --arg name "$name" \
+        --argjson context "$context" \
+        --argjson output "$output" \
+        '{providers: {($provider): {
+          baseUrl: $base_url,
+          auth: "none",
+          api: "openai-responses",
+          models: [{
+            id: $model,
+            name: $name,
+            reasoning: true,
+            thinking: {mode: "effort", efforts: ["high"], defaultLevel: "high", requiresEffort: true},
+            input: ["text", "image"],
+            imageInputDecoder: "stb",
+            tokenizer: "deepseek-v3",
+            supportsTools: true,
+            contextWindow: $context,
+            maxTokens: $output,
+            cost: {input: 0, output: 0, cacheRead: 0, cacheWrite: 0},
+            compat: {
+              supportsStore: false,
+              supportsDeveloperRole: false,
+              supportsReasoningEffort: true,
+              supportsToolChoice: false,
+              supportsForcedToolChoice: false
+            }
+          }]
+        }}}' >"$temporary"
+      ;;
+    glm-ds4)
+      jq -n \
+        --arg provider "$provider" \
+        --arg base_url "$base_url" \
+        --arg model "$provider_model" \
+        --arg name "$name" \
+        --argjson context "$context" \
+        --argjson output "$output" \
+        '{providers: {($provider): {
+          baseUrl: $base_url,
+          auth: "none",
+          api: "openai-responses",
+          models: [{
+            id: $model,
+            name: $name,
+            reasoning: true,
+            thinking: {mode: "effort", efforts: ["high"], defaultLevel: "high", requiresEffort: true},
+            input: ["text"],
+            tokenizer: "glm5",
+            supportsTools: true,
+            contextWindow: $context,
+            maxTokens: $output,
+            cost: {input: 0, output: 0, cacheRead: 0, cacheWrite: 0},
+            compat: {
+              supportsStore: false,
+              supportsDeveloperRole: false,
+              supportsReasoningEffort: true,
+              supportsToolChoice: false,
+              supportsForcedToolChoice: false
+            }
+          }]
+        }}}' >"$temporary"
+      ;;
+    qwen)
+      local input='["text"]'
+      case "$id" in
+        qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq4-xs) input='["text", "image"]' ;;
+      esac
+      jq -n \
+        --arg provider "$provider" \
+        --arg base_url "$base_url" \
+        --arg model "$provider_model" \
+        --arg name "$name" \
+        --argjson input "$input" \
+        --argjson context "$context" \
+        --argjson output "$output" \
+        '{providers: {($provider): {
+          baseUrl: $base_url,
+          auth: "none",
+          api: "openai-completions",
+          models: [{
+            id: $model,
+            name: $name,
+            reasoning: true,
+            thinking: {mode: "effort", efforts: ["low", "medium", "xhigh"], defaultLevel: "medium", requiresEffort: false},
+            input: $input,
+            imageInputDecoder: "stb",
+            tokenizer: "qwen3",
+            supportsTools: true,
+            contextWindow: $context,
+            maxTokens: $output,
+            cost: {input: 0, output: 0, cacheRead: 0, cacheWrite: 0},
+            compat: {
+              supportsStore: false,
+              supportsDeveloperRole: false,
+              supportsReasoningEffort: true,
+              maxTokensField: "max_tokens",
+              thinkingFormat: "qwen-chat-template",
+              qwenTemplateReasoningEffort: true
+            }
+          }]
+        }}}' >"$temporary"
+      ;;
+  esac
+  mv "$temporary" "$OMP_AGENT_DIR/models.yml"
+  printf '%s/%s\n' "$provider" "$provider_model"
+}
+
+run_omp() {
+  local id="$1"
+  shift
+  local selector
+  local owned_server=false
+
+  command -v omp >/dev/null 2>&1 || {
+    echo "omp is required for modelctl omp." >&2
+    return 1
+  }
+  command -v jq >/dev/null 2>&1 || {
+    echo "jq is required for modelctl omp." >&2
+    return 1
+  }
+  selector="$(write_omp_models "$id")"
+
+  if ! healthy "$id"; then
+    if service_loaded "$id" || listening "$id"; then
+      echo "$id has a listener or launch service but is not healthy." >&2
+      return 1
+    fi
+    start_model "$id" >&2
+    owned_server=true
+  fi
+
+  cleanup_omp() {
+    if [[ "$owned_server" == true ]]; then
+      stop_model "$id" >&2 || true
+    fi
+  }
+  trap cleanup_omp EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+
+  set +e
+  PI_CODING_AGENT_DIR="$OMP_AGENT_DIR" omp --model "$selector" "$@"
+  local status=$?
+  set -e
+  trap - EXIT INT TERM
+  cleanup_omp
+  return "$status"
+}
+
 model_path() {
   case "$1" in
     qwen3.8-27b) echo "$MODEL_HOME/aliases/qwen3.8-27b" ;;
     qwen3.8-27b-fixed-v22-4) echo "$MODEL_HOME/aliases/qwen3.8-27b" ;;
+    qwen3.8-flash-next-iq4-xs) echo "$QWEN38_FLASH_MODEL_DIR" ;;
     qwen3.8-27b-mlxfast-mtp) echo "$MODEL_HOME/mlx/qwen/qwen3.8-27b-mlxfast-mtp" ;;
     qwen3.8-27b-mlxfast-mtp-server) echo "$MODEL_HOME/mlx/qwen/qwen3.8-27b-mlxfast-mtp" ;;
     qwen3.6-35b-a3b) echo "$MODEL_HOME/aliases/qwen3.6-35b-a3b-mlx" ;;
@@ -237,8 +456,29 @@ ready() {
         "$(shasum -a 256 "$QWEN_FIXED_TEMPLATE" | awk '{ print $1 }')" == "$QWEN_FIXED_TEMPLATE_SHA256" &&
         -x "$(command -v llama-server 2>/dev/null)" ]]
       ;;
+    qwen3.8-flash-next-iq4-xs)
+      [[ -f "$QWEN38_FLASH_MODEL_DIR/$QWEN38_FLASH_SHARD_1" &&
+        "$(/usr/bin/stat -f '%z' "$QWEN38_FLASH_MODEL_DIR/$QWEN38_FLASH_SHARD_1")" == "10946624" &&
+        -f "$QWEN38_FLASH_MODEL_DIR/$QWEN38_FLASH_SHARD_2" &&
+        "$(/usr/bin/stat -f '%z' "$QWEN38_FLASH_MODEL_DIR/$QWEN38_FLASH_SHARD_2")" == "49835229856" &&
+        -f "$QWEN38_FLASH_MODEL_DIR/$QWEN38_FLASH_SHARD_3" &&
+        "$(/usr/bin/stat -f '%z' "$QWEN38_FLASH_MODEL_DIR/$QWEN38_FLASH_SHARD_3")" == "43836407744" &&
+        -f "$QWEN38_FLASH_MODEL_DIR/$QWEN38_FLASH_MMPROJ" &&
+        "$(/usr/bin/stat -f '%z' "$QWEN38_FLASH_MODEL_DIR/$QWEN38_FLASH_MMPROJ")" == "904004000" &&
+        -x "$QWEN38_FLASH_RUNTIME_ROOT/build-make/bin/llama-server" &&
+        "$(git -C "$QWEN38_FLASH_RUNTIME_ROOT" rev-parse HEAD 2>/dev/null)" == "$QWEN38_FLASH_RUNTIME_COMMIT" &&
+        "$("$QWEN38_FLASH_RUNTIME_ROOT/build-make/bin/llama-server" --version 2>&1 | head -n 1)" == *"commit 9723942ad"* ]] &&
+        git -C "$QWEN38_FLASH_RUNTIME_ROOT" diff --quiet HEAD --
+      ;;
     deepseek-v4-flash)
-      [[ -f "$MODEL_HOME/aliases/deepseek-v4-flash-current.gguf" && -x "$HOME/code/ds4/ds4-server" ]]
+      [[ -f "$(model_path "$id")" &&
+        "$(/usr/bin/stat -L -f '%z' "$(model_path "$id")")" == "$DEEPSEEK_MODEL_BYTES" &&
+        -f "$DEEPSEEK_VISION_PATH" &&
+        "$(/usr/bin/stat -f '%z' "$DEEPSEEK_VISION_PATH")" == "$DEEPSEEK_VISION_BYTES" &&
+        -x "$DEEPSEEK_DS4_ROOT/ds4-server" &&
+        "$(git -C "$DEEPSEEK_DS4_ROOT" rev-parse HEAD 2>/dev/null)" == "$DEEPSEEK_DS4_COMMIT" ]] &&
+        git -C "$DEEPSEEK_DS4_ROOT" diff --quiet HEAD -- &&
+        make -q -C "$DEEPSEEK_DS4_ROOT" ds4-server
       ;;
     glm-5.3-flash-q2|glm-5.3-flash-q2-131k)
       [[ -f "$(model_path "$id")" &&
@@ -410,6 +650,31 @@ run_model() {
         --image-min-tokens 1024 \
         --chat-template-kwargs '{"reasoning_effort":"medium"}'
       ;;
+    qwen3.8-flash-next-iq4-xs)
+      exec "$QWEN38_FLASH_RUNTIME_ROOT/build-make/bin/llama-server" \
+        --model "$QWEN38_FLASH_MODEL_DIR/$QWEN38_FLASH_SHARD_1" \
+        --mmproj "$QWEN38_FLASH_MODEL_DIR/$QWEN38_FLASH_MMPROJ" \
+        --alias 'qwen3.8-flash-next-iq4-xs' \
+        --gpu-layers all \
+        --fit off \
+        --flash-attn on \
+        --ctx-size 32768 \
+        --parallel 1 \
+        --host 127.0.0.1 \
+        --port 8084 \
+        --cors-origins localhost \
+        --jinja \
+        --temp 1.0 \
+        --top-p 0.95 \
+        --top-k 20 \
+        --min-p 0 \
+        --presence-penalty 0 \
+        --repeat-penalty 1.0 \
+        --reasoning on \
+        --reasoning-preserve \
+        --reasoning-effort medium \
+        --image-min-tokens 1024
+      ;;
     qwen3.6-35b-a3b)
       export HF_HOME="$MODEL_HOME/mlx/qwen/qwen3.6-35b-a3b/hf-home"
       export HF_HUB_CACHE="$HF_HOME/hub"
@@ -429,13 +694,13 @@ run_model() {
       exec "$MODEL_HOME/scripts/qwen38-mlxfast-server.sh" "$@"
       ;;
     deepseek-v4-flash)
-      local ds4_root="$HOME/code/ds4"
       local ds4_kv_dir="${TMPDIR:-/tmp}/local-models-ds4-kv"
       mkdir -p "$ds4_kv_dir"
-      cd "$ds4_root"
-      exec "$ds4_root/ds4-server" \
+      cd "$DEEPSEEK_DS4_ROOT"
+      exec "$DEEPSEEK_DS4_ROOT/ds4-server" \
         --backend metal \
-        --model "$MODEL_HOME/aliases/deepseek-v4-flash-current.gguf" \
+        --model "$(model_path "$id")" \
+        --vision "$DEEPSEEK_VISION_PATH" \
         --ctx 250000 \
         --host 127.0.0.1 \
         --port 8000 \
@@ -539,6 +804,7 @@ status_one() {
 
 startup_timeout() {
   case "$1" in
+    qwen3.8-flash-next-iq4-xs) echo 900 ;;
     qwen3.8-27b-mlxfast-mtp-server) echo 600 ;;
     glm-5.3-flash-q2|glm-5.3-flash-q2-131k) echo 180 ;;
     *) echo 45 ;;
@@ -595,7 +861,9 @@ start_model() {
     -- /usr/bin/env \
       "MODEL_HOME=$MODEL_HOME" \
       "LOCAL_MODEL_STATE_HOME=$STATE_HOME" \
+      "DEEPSEEK_DS4_ROOT=$DEEPSEEK_DS4_ROOT" \
       "GLM53_DS4_ROOT=$GLM53_DS4_ROOT" \
+      "QWEN38_FLASH_RUNTIME_ROOT=$QWEN38_FLASH_RUNTIME_ROOT" \
       "PATH=$PATH" \
       "$self" __run "$id"
 
@@ -682,6 +950,47 @@ doctor() {
         return 1
       fi
     fi
+    if [[ "$requested_id" == deepseek-v4-flash ]]; then
+      local deepseek_model_sha256
+      local deepseek_vision_sha256
+      deepseek_model_sha256="$(shasum -a 256 "$(model_path "$requested_id")" | awk '{ print $1 }')"
+      deepseek_vision_sha256="$(shasum -a 256 "$DEEPSEEK_VISION_PATH" | awk '{ print $1 }')"
+      if [[ "$deepseek_model_sha256" != "$DEEPSEEK_MODEL_SHA256" ]]; then
+        echo "DeepSeek Vision-Exp model SHA-256 mismatch: $deepseek_model_sha256" >&2
+        return 1
+      fi
+      if [[ "$deepseek_vision_sha256" != "$DEEPSEEK_VISION_SHA256" ]]; then
+        echo "DeepSeek Vision-Exp encoder SHA-256 mismatch: $deepseek_vision_sha256" >&2
+        return 1
+      fi
+    fi
+    if [[ "$requested_id" == qwen3.8-flash-next-iq4-xs ]]; then
+      local qwen38_flash_checksums
+      qwen38_flash_checksums="$(
+        cd "$QWEN38_FLASH_MODEL_DIR"
+        /usr/bin/shasum -a 256 \
+          "$QWEN38_FLASH_SHARD_1" \
+          "$QWEN38_FLASH_SHARD_2" \
+          "$QWEN38_FLASH_SHARD_3" \
+          "$QWEN38_FLASH_MMPROJ"
+      )"
+      grep -q '^5ce89370720f8bf90890f439361282104c1aa1482d4013bb9a50923e758e71a4 ' <<<"$qwen38_flash_checksums" || {
+        echo "Qwen3.8 Flash Next shard 1 SHA-256 mismatch." >&2
+        return 1
+      }
+      grep -q '^577a38a2392b40ca2193cea502e1d92f60b8cd370675d308e0ec21885d9daaa7 ' <<<"$qwen38_flash_checksums" || {
+        echo "Qwen3.8 Flash Next shard 2 SHA-256 mismatch." >&2
+        return 1
+      }
+      grep -q '^d4634e6d84f0ebb0940be15c90d3790bf6464e3dea3a1cddc567dc0e83ad8833 ' <<<"$qwen38_flash_checksums" || {
+        echo "Qwen3.8 Flash Next shard 3 SHA-256 mismatch." >&2
+        return 1
+      }
+      grep -q '^1f7b7f0b984cf065c604360c29c8098362ed61b290db0ff12c6f360bb1a8a980 ' <<<"$qwen38_flash_checksums" || {
+        echo "Qwen3.8 Flash Next vision projector SHA-256 mismatch." >&2
+        return 1
+      }
+    fi
     echo "All checks passed for $requested_id."
     return
   fi
@@ -727,6 +1036,8 @@ Commands:
   path MODEL           Print the canonical model path
   endpoint MODEL [--json]
                        Print the OpenAI-compatible endpoint metadata
+  omp MODEL [OMP_ARGS]
+                       Run OMP with generated model metadata; owns server lifecycle when needed
   doctor [MODEL]       Validate all models, or one model and its runtime
 EOF
 }
@@ -783,6 +1094,14 @@ case "$command_name" in
     known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
     endpoint "$2" "${3:-text}"
     ;;
+  omp)
+    [[ -n "${2:-}" ]] || { usage >&2; exit 2; }
+    known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
+    [[ "$(kind "$2")" == service ]] || { echo "$2 is not a model server." >&2; exit 2; }
+    id="$2"
+    shift 2
+    run_omp "$id" "$@"
+    ;;
   doctor)
     doctor "${2:-}"
     ;;
@@ -791,7 +1110,7 @@ case "$command_name" in
     run_model "$2"
     ;;
   __complete)
-    [[ "${2:-}" == all || "${2:-}" == models || "${2:-}" == runnable || "${2:-}" == services ]] || exit 2
+    [[ "${2:-}" == all || "${2:-}" == models || "${2:-}" == runnable || "${2:-}" == services || "${2:-}" == omp ]] || exit 2
     completion_models "$2"
     ;;
   help|-h|--help|'')

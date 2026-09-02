@@ -38,6 +38,8 @@ Available services:
 - `qwen3.8-27b` on port 8080; this is the Qwen Code backend.
 - `qwen3.8-27b-fixed-v22-4` on port 8085; this reuses the Q8 weights with a
   pinned fixed Jinja template for controlled Vibebench comparisons.
+- `qwen3.8-flash-next-iq4-xs` on port 8084; pinned upstream llama.cpp Metal
+  runtime, single-slot 32K qualification profile, and embedded Qwen template.
 - `qwen3.8-27b-mlxfast-mtp-server` on port 8083; native MLX.fast MTP for
   OpenAI-compatible clients and `modelbench`.
 - `qwen3.6-35b-a3b` on port 8081.
@@ -158,6 +160,21 @@ modelctl endpoint qwen3.8-27b --json
 Service endpoint metadata includes `context` and the model's advertised
 `output` ceiling. Benchmark clients may request a lower per-response policy;
 the Qwen adapter enforces the remaining-context clamp at request time.
+
+## OMP
+
+`modelctl omp` generates an isolated OMP model definition from the selected
+endpoint and launches OMP with the matching DS4 or Qwen compatibility preset:
+
+```bash
+modelctl omp glm-5.3-flash-q2-131k
+modelctl omp deepseek-v4-flash --thinking high
+modelctl omp qwen3.8-27b --thinking medium
+```
+
+Generated state lives under `~/Library/Application Support/local-models` by
+default. If the model is stopped, the command starts it and stops it again when
+OMP exits; an already-running service is left running.
 
 ## Coding benchmark
 
