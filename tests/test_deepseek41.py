@@ -34,6 +34,8 @@ with tempfile.TemporaryDirectory() as temp:
                             ("--thinking high", ["--thinking", "high"])]:
         actual = run(mocks + f"run_omp {model} {flags} prompt").splitlines()
         assert actual[2:] == expected + ["prompt"], actual
+    assert len(run(mocks + f"run_omp {model}").splitlines()) == 2
+    assert run(mocks + f"run_omp {model} -- --thinking off").splitlines()[2:] == ["--", "--thinking", "off"]
     server = Path(temp) / "ds4-server"
     server.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n')
     server.chmod(0o755)

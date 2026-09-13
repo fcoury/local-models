@@ -392,7 +392,7 @@ run_omp() {
   local selector
   local owned_server=false
 
-  if [[ "$id" == deepseek-v4.1-flash-q2-32k ]]; then
+  if [[ "$id" == deepseek-v4.1-flash-q2-32k && $# -gt 0 ]]; then
     # OMP's literal off can omit effort on side requests. minimal maps to native none.
     local args=("$@") i
     for ((i=0; i<${#args[@]}; i++)); do
