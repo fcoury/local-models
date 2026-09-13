@@ -27,7 +27,13 @@ with tempfile.TemporaryDirectory() as temp:
         assert cfg["api"] == "openai-responses"
         assert cfg["models"][0]["input"] == (["text"] if target == model else ["text", "image"])
         assert cfg["models"][0]["thinking"]["requiresEffort"] == (target != model)
-        assert cfg["models"][0]["compat"]["reasoningEffortMap"] == ({"minimal": "none", "medium": "none"} if target == model else {})
+        assert cfg["models"][0]["compat"]["reasoningEffortMap"] == ({"minimal": "none"} if target == model else {})
+    mocks = 'healthy() { return 0; }; omp() { printf "%s\\n" "$@"; }; '
+    for flags, expected in [("--thinking off", ["--thinking", "minimal"]),
+                            ("--thinking=off", ["--thinking=minimal"]),
+                            ("--thinking high", ["--thinking", "high"])]:
+        actual = run(mocks + f"run_omp {model} {flags} prompt").splitlines()
+        assert actual[2:] == expected + ["prompt"], actual
     server = Path(temp) / "ds4-server"
     server.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n')
     server.chmod(0o755)

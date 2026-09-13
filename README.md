@@ -260,7 +260,9 @@ modelctl omp deepseek-v4.1-flash-q2-32k --thinking high
 modelctl stop deepseek-v4.1-flash-q2-32k
 ```
 
-Use `--thinking off` to disable reasoning. At the pinned runtime revision,
+Use `--thinking off` to disable reasoning. The launcher translates it to OMP's
+explicit `minimal` selector, mapped to native `none`, including compaction.
+Inside an existing OMP session, choose `minimal` for the same behavior. At the pinned runtime revision,
 API low/medium/high/xhigh all map to V4.1 effort 75; max maps to 100.
 `doctor` verifies the entire 340.6 GiB artifact and can take several minutes.
 Run `python3 tests/test_deepseek41.py` for the profile's local regression check.

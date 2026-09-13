@@ -272,7 +272,7 @@ write_omp_models() {
   temporary="$(mktemp "$OMP_AGENT_DIR/models.yml.XXXXXX")"
   case "$family" in
     deepseek-ds4|deepseek41-ds4)
-      # OMP off uses the lowest effort; off compaction falls back to medium. Both need none.
+      # Use an explicit effort so OMP sends none during tool loops and compaction.
       jq -n \
         --arg family "$family" \
         --arg provider "$provider" \
@@ -301,7 +301,7 @@ write_omp_models() {
               supportsStore: false,
               supportsDeveloperRole: false,
               supportsReasoningEffort: true,
-              reasoningEffortMap: (if $family == "deepseek41-ds4" then {minimal: "none", medium: "none"} else {} end),
+              reasoningEffortMap: (if $family == "deepseek41-ds4" then {minimal: "none"} else {} end),
               supportsToolChoice: false,
               supportsForcedToolChoice: false
             }
@@ -391,6 +391,20 @@ run_omp() {
   shift
   local selector
   local owned_server=false
+
+  if [[ "$id" == deepseek-v4.1-flash-q2-32k ]]; then
+    # OMP's literal off can omit effort on side requests. minimal maps to native none.
+    local args=("$@") i
+    for ((i=0; i<${#args[@]}; i++)); do
+      [[ "${args[$i]}" != -- ]] || break
+      if [[ "${args[$i]}" == --thinking=off ]]; then
+        args[$i]=--thinking=minimal
+      elif [[ "${args[$i]}" == --thinking && "${args[$((i+1))]:-}" == off ]]; then
+        args[$((i+1))]=minimal
+      fi
+    done
+    set -- "${args[@]}"
+  fi
 
   if [[ "$(omp_family "$id")" == glm-ds4 || "$id" == deepseek-v4.1-flash-q2-32k ]]; then
     export PI_EDIT_VARIANT="${PI_EDIT_VARIANT:-replace}"
