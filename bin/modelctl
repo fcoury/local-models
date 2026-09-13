@@ -18,6 +18,10 @@ QWEN38_FLASH_SHARD_1="Qwen3.8-Flash-Next-UD-IQ4_XS-00001-of-00003.gguf"
 QWEN38_FLASH_SHARD_2="Qwen3.8-Flash-Next-UD-IQ4_XS-00002-of-00003.gguf"
 QWEN38_FLASH_SHARD_3="Qwen3.8-Flash-Next-UD-IQ4_XS-00003-of-00003.gguf"
 QWEN38_FLASH_MMPROJ="mmproj-F16.gguf"
+DEEPSEEK41_DS4_ROOT="${DEEPSEEK41_DS4_ROOT:-$HOME/code/ds4-deepseek-v4.1-flash}"
+DEEPSEEK41_DS4_COMMIT="bd66c402070042bf0a79ad6ece8242de4c93680c"
+DEEPSEEK41_MODEL_BYTES="365713686528"
+DEEPSEEK41_MODEL_SHA256="1ce6a8f8806205c13330d7ca287bd198331dc5ca35ccc5d8a9a92a188a6f6f42"
 DEEPSEEK_DS4_ROOT="${DEEPSEEK_DS4_ROOT:-$HOME/code/ds4-deepseek-v4-vision}"
 DEEPSEEK_DS4_COMMIT="110afdd8886586f18fc9b28bc5533152dd10e728"
 DEEPSEEK_MODEL_BYTES="86720111776"
@@ -42,6 +46,7 @@ qwen3.8-flash-next-iq4-xs
 qwen3.8-27b-mlxfast-mtp
 qwen3.8-27b-mlxfast-mtp-server
 qwen3.6-35b-a3b
+deepseek-v4.1-flash-q2-32k
 deepseek-v4-flash
 glm-5.3-flash-q2
 glm-5.3-flash-q2-131k
@@ -89,6 +94,7 @@ completion_models() {
 
 label() {
   case "$1" in
+    deepseek-v4.1-flash-q2-32k) echo "DeepSeek V4.1 Flash Q2 32K (DwarfStar SSD)" ;;
     qwen3.8-27b) echo "Qwen3.8 27B Q8 (llama.cpp)" ;;
     qwen3.8-27b-fixed-v22-4) echo "Qwen3.8 27B Q8 + Froggeric fixed template v22.4" ;;
     qwen3.8-flash-next-iq4-xs) echo "Qwen3.8 Flash Next UD-IQ4_XS 32K (pinned llama.cpp Metal)" ;;
@@ -115,6 +121,7 @@ label() {
 
 kind() {
   case "$1" in
+    deepseek-v4.1-flash-q2-32k) echo service ;;
     qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq4-xs|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|glm-5.3-flash-q2|glm-5.3-flash-q2-131k|minimax-h3-standard|minimax-h3-heretic|muse-glimmer-30b-server)
       echo service
       ;;
@@ -129,6 +136,7 @@ kind() {
 
 port() {
   case "$1" in
+    deepseek-v4.1-flash-q2-32k) echo 8009 ;;
     qwen3.8-27b) echo 8080 ;;
     qwen3.8-27b-fixed-v22-4) echo 8085 ;;
     qwen3.8-flash-next-iq4-xs) echo 8084 ;;
@@ -146,6 +154,7 @@ port() {
 
 api_model() {
   case "$1" in
+    deepseek-v4.1-flash-q2-32k) echo deepseek-v4.1-flash ;;
     qwen3.8-27b) echo 'ggml-org/Qwen3.8-27B-GGUF:Q8_0' ;;
     qwen3.8-27b-fixed-v22-4) echo 'qwen3.8-27b-q8-fixed-v22.4' ;;
     qwen3.8-flash-next-iq4-xs) echo 'qwen3.8-flash-next-iq4-xs' ;;
@@ -159,6 +168,7 @@ api_model() {
 
 context_size() {
   case "$1" in
+    deepseek-v4.1-flash-q2-32k) echo 32768 ;;
     qwen3.8-27b|qwen3.8-27b-fixed-v22-4|muse-glimmer-30b-server) echo 131072 ;;
     qwen3.8-flash-next-iq4-xs) echo 32768 ;;
     qwen3.8-27b-mlxfast-mtp-server) echo 40960 ;;
@@ -171,6 +181,7 @@ context_size() {
 
 output_size() {
   case "$1" in
+    deepseek-v4.1-flash-q2-32k) echo 16384 ;;
     qwen3.8-flash-next-iq4-xs)
       echo 16384
       ;;
@@ -225,6 +236,7 @@ endpoint() {
 
 omp_family() {
   case "$1" in
+    deepseek-v4.1-flash-q2-32k) echo deepseek41-ds4 ;;
     deepseek-v4-flash) echo deepseek-ds4 ;;
     glm-5.3-flash-q2|glm-5.3-flash-q2-131k) echo glm-ds4 ;;
     qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq4-xs|qwen3.8-27b-mlxfast-mtp-server) echo qwen ;;
@@ -259,8 +271,9 @@ write_omp_models() {
   mkdir -p "$OMP_AGENT_DIR"
   temporary="$(mktemp "$OMP_AGENT_DIR/models.yml.XXXXXX")"
   case "$family" in
-    deepseek-ds4)
+    deepseek-ds4|deepseek41-ds4)
       jq -n \
+        --arg family "$family" \
         --arg provider "$provider" \
         --arg base_url "$base_url" \
         --arg model "$provider_model" \
@@ -275,8 +288,8 @@ write_omp_models() {
             id: $model,
             name: $name,
             reasoning: true,
-            thinking: {mode: "effort", efforts: ["high"], defaultLevel: "high", requiresEffort: true},
-            input: ["text", "image"],
+            thinking: {mode: "effort", efforts: ["high"], defaultLevel: "high", requiresEffort: ($family != "deepseek41-ds4")},
+            input: (if $family == "deepseek41-ds4" then ["text"] else ["text", "image"] end),
             imageInputDecoder: "stb",
             tokenizer: "deepseek-v3",
             supportsTools: true,
@@ -377,7 +390,7 @@ run_omp() {
   local selector
   local owned_server=false
 
-  if [[ "$(omp_family "$id")" == glm-ds4 ]]; then
+  if [[ "$(omp_family "$id")" == glm-ds4 || "$id" == deepseek-v4.1-flash-q2-32k ]]; then
     export PI_EDIT_VARIANT="${PI_EDIT_VARIANT:-replace}"
   fi
 
@@ -420,6 +433,7 @@ run_omp() {
 
 model_path() {
   case "$1" in
+    deepseek-v4.1-flash-q2-32k) echo "$MODEL_HOME/gguf/deepseek/deepseek-v4.1-flash-q2/DeepSeek-V4.1-Flash-Q2.gguf" ;;
     qwen3.8-27b) echo "$MODEL_HOME/aliases/qwen3.8-27b" ;;
     qwen3.8-27b-fixed-v22-4) echo "$MODEL_HOME/aliases/qwen3.8-27b" ;;
     qwen3.8-flash-next-iq4-xs) echo "$QWEN38_FLASH_MODEL_DIR" ;;
@@ -450,6 +464,14 @@ known_model() {
 ready() {
   local id="$1"
   case "$id" in
+    deepseek-v4.1-flash-q2-32k)
+      [[ -f "$(model_path "$id")" &&
+        "$(/usr/bin/stat -L -f '%z' "$(model_path "$id")")" == "$DEEPSEEK41_MODEL_BYTES" &&
+        -x "$DEEPSEEK41_DS4_ROOT/ds4-server" &&
+        "$(git -C "$DEEPSEEK41_DS4_ROOT" rev-parse HEAD 2>/dev/null)" == "$DEEPSEEK41_DS4_COMMIT" ]] &&
+        git -C "$DEEPSEEK41_DS4_ROOT" diff --quiet HEAD -- &&
+        make -q -C "$DEEPSEEK41_DS4_ROOT" ds4-server
+      ;;
     qwen3.8-27b)
       [[ -f "$MODEL_HOME/aliases/qwen3.8-27b/model.gguf" && -f "$MODEL_HOME/aliases/qwen3.8-27b/mmproj.gguf" ]]
       ;;
@@ -604,10 +626,39 @@ require_glm_variant_peer_stopped() {
   fi
 }
 
+# V4.1 streaming consumes most of a 128 GiB host. Serialize managed models.
+require_deepseek41_exclusive() {
+  local id="$1" peer
+  if [[ "$id" == deepseek-v4.1-flash-q2-32k ]]; then
+    while IFS= read -r peer; do
+      [[ "$peer" != "$id" && "$(kind "$peer")" == service ]] || continue
+      if service_loaded "$peer" || listening "$peer"; then
+        echo "Stop $peer before starting $id." >&2
+        return 1
+      fi
+    done < <(models)
+  elif service_loaded deepseek-v4.1-flash-q2-32k || listening deepseek-v4.1-flash-q2-32k; then
+    echo "Stop deepseek-v4.1-flash-q2-32k before starting $id." >&2
+    return 1
+  fi
+}
+
 run_model() {
   local id="$1"
   shift
+  require_deepseek41_exclusive "$id"
   case "$id" in
+    deepseek-v4.1-flash-q2-32k)
+      local kv_dir="$STATE_HOME/kv/$id"
+      mkdir -p "$kv_dir"
+      cd "$DEEPSEEK41_DS4_ROOT"
+      exec "$DEEPSEEK41_DS4_ROOT/ds4-server" \
+        --backend metal --ssd-streaming \
+        --model "$(model_path "$id")" \
+        --ctx "$(context_size "$id")" --tokens "$(output_size "$id")" \
+        --host 127.0.0.1 --port "$(port "$id")" \
+        --kv-disk-dir "$kv_dir" --kv-disk-space-mb 8192 "$@"
+      ;;
     qwen3.8-27b)
       require_qwen_variant_peer_stopped "$id"
       exec llama-server \
@@ -808,6 +859,7 @@ status_one() {
 
 startup_timeout() {
   case "$1" in
+    deepseek-v4.1-flash-q2-32k) echo 180 ;;
     qwen3.8-flash-next-iq4-xs) echo 900 ;;
     qwen3.8-27b-mlxfast-mtp-server) echo 600 ;;
     glm-5.3-flash-q2|glm-5.3-flash-q2-131k) echo 180 ;;
@@ -838,6 +890,7 @@ start_model() {
   fi
   require_qwen_variant_peer_stopped "$id"
   require_glm_variant_peer_stopped "$id"
+  require_deepseek41_exclusive "$id"
   if listening "$id"; then
     echo "$id already has a listener on port $(port "$id")."
     status_one "$id"
@@ -866,6 +919,7 @@ start_model() {
       "MODEL_HOME=$MODEL_HOME" \
       "LOCAL_MODEL_STATE_HOME=$STATE_HOME" \
       "DEEPSEEK_DS4_ROOT=$DEEPSEEK_DS4_ROOT" \
+      "DEEPSEEK41_DS4_ROOT=$DEEPSEEK41_DS4_ROOT" \
       "GLM53_DS4_ROOT=$GLM53_DS4_ROOT" \
       "QWEN38_FLASH_RUNTIME_ROOT=$QWEN38_FLASH_RUNTIME_ROOT" \
       "PATH=$PATH" \
@@ -951,6 +1005,14 @@ doctor() {
       actual_sha256="$(shasum -a 256 "$(model_path "$requested_id")" | awk '{ print $1 }')"
       if [[ "$actual_sha256" != "$GLM53_MODEL_SHA256" ]]; then
         echo "GLM 5.3 model SHA-256 mismatch: $actual_sha256" >&2
+        return 1
+      fi
+    fi
+    if [[ "$requested_id" == deepseek-v4.1-flash-q2-32k ]]; then
+      local actual_sha256
+      actual_sha256="$(openssl dgst -sha256 "$(model_path "$requested_id")" | awk '{print $NF}')"
+      if [[ "$actual_sha256" != "$DEEPSEEK41_MODEL_SHA256" ]]; then
+        echo "DeepSeek V4.1 model SHA-256 mismatch: $actual_sha256" >&2
         return 1
       fi
     fi

@@ -254,3 +254,26 @@ port = 8082
 status = "ready"
 consumer = "Pi, Qwen Code, OpenCode, and other OpenAI-compatible harnesses"
 notes = "Official dynamic quant plus vision projector, served as muse-glimmer with 131072 context and one slot."
+
+[[models]]
+id = "deepseek-v4.1-flash-q2-32k"
+name = "DeepSeek V4.1 Flash Q2 32K"
+format = "GGUF"
+runner = "DwarfStar (Metal SSD streaming)"
+path = "gguf/deepseek/deepseek-v4.1-flash-q2/DeepSeek-V4.1-Flash-Q2.gguf"
+port = 8009
+context = 32768
+output = 16384
+status = "ready"
+api_model = "deepseek-v4.1-flash"
+bytes = 365713686528
+sha256 = "1ce6a8f8806205c13330d7ca287bd198331dc5ca35ccc5d8a9a92a188a6f6f42"
+source = "antirez/deepseek-v4.1-flash-gguf"
+source_revision = "dd8a266f7145edc19e2334b46e19b6821f221dc7"
+runtime_path = "~/code/ds4-deepseek-v4.1-flash"
+runtime_commit = "bd66c402070042bf0a79ad6ece8242de4c93680c"
+quantization = "IQ2_XXS gate/up and Q2_K down routed experts"
+vision = false
+mtp = false
+consumer = "OMP, Vibebench, modelbench, and OpenAI-compatible clients"
+notes = "Text-only 32K profile; mandatory SSD streaming, automatic expert cache, disk-only Engram."

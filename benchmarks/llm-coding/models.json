@@ -20,6 +20,16 @@
       "tool_call": true,
       "reasoning": true,
       "billing": "Local Apple Silicon"
+    },
+    {
+      "modelctl_id": "deepseek-v4.1-flash-q2-32k",
+      "slug": "deepseek_v4_1_flash_q2_32k",
+      "label": "DeepSeek V4.1 Flash Q2 (DwarfStar SSD)",
+      "provider": "local-models",
+      "provider_model": "deepseek-v4.1-flash",
+      "tool_call": true,
+      "reasoning": true,
+      "billing": "Local Apple Silicon"
     }
   ]
 }

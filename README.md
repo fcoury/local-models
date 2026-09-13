@@ -244,3 +244,23 @@ Runtime state and logs live in
 This repository tracks launch profiles, the model catalog, documentation, and
 compatibility wrappers. Never add model weights, download caches, logs, PID
 files, or credentials. In particular, `~/.qwen/.env` stays outside Git.
+
+## DeepSeek V4.1 Flash Q2
+
+`deepseek-v4.1-flash-q2-32k` uses pinned DwarfStar Metal with SSD streaming on
+port 8009, 32,768 context tokens, and a 16,384-token default response budget.
+The server bounds generation by remaining context. The profile is text-only,
+with no vision or MTP, and runs exclusively with other managed model services.
+
+```bash
+modelctl doctor deepseek-v4.1-flash-q2-32k
+modelctl start deepseek-v4.1-flash-q2-32k
+modelctl endpoint deepseek-v4.1-flash-q2-32k --json
+modelctl omp deepseek-v4.1-flash-q2-32k --thinking high
+modelctl stop deepseek-v4.1-flash-q2-32k
+```
+
+Use `--thinking off` to disable reasoning. At the pinned runtime revision,
+API low/medium/high/xhigh all map to V4.1 effort 75; max maps to 100.
+`doctor` verifies the entire 340.6 GiB artifact and can take several minutes.
+Run `python3 tests/test_deepseek41.py` for the profile's local regression check.
