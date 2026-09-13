@@ -272,6 +272,7 @@ write_omp_models() {
   temporary="$(mktemp "$OMP_AGENT_DIR/models.yml.XXXXXX")"
   case "$family" in
     deepseek-ds4|deepseek41-ds4)
+      # OMP disables reasoning using the lowest effort; V4.1 needs explicit none.
       jq -n \
         --arg family "$family" \
         --arg provider "$provider" \
@@ -288,7 +289,7 @@ write_omp_models() {
             id: $model,
             name: $name,
             reasoning: true,
-            thinking: {mode: "effort", efforts: ["high"], defaultLevel: "high", requiresEffort: ($family != "deepseek41-ds4")},
+            thinking: {mode: "effort", efforts: (if $family == "deepseek41-ds4" then ["minimal", "high"] else ["high"] end), defaultLevel: "high", requiresEffort: ($family != "deepseek41-ds4")},
             input: (if $family == "deepseek41-ds4" then ["text"] else ["text", "image"] end),
             imageInputDecoder: "stb",
             tokenizer: "deepseek-v3",
@@ -300,6 +301,7 @@ write_omp_models() {
               supportsStore: false,
               supportsDeveloperRole: false,
               supportsReasoningEffort: true,
+              reasoningEffortMap: (if $family == "deepseek41-ds4" then {minimal: "none"} else {} end),
               supportsToolChoice: false,
               supportsForcedToolChoice: false
             }
