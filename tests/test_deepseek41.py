@@ -27,7 +27,7 @@ with tempfile.TemporaryDirectory() as temp:
         assert cfg["api"] == "openai-responses"
         assert cfg["models"][0]["input"] == (["text"] if target == model else ["text", "image"])
         assert cfg["models"][0]["thinking"]["requiresEffort"] == (target != model)
-        assert cfg["models"][0]["compat"]["reasoningEffortMap"] == ({"minimal": "none"} if target == model else {})
+        assert cfg["models"][0]["compat"]["reasoningEffortMap"] == ({"minimal": "none", "medium": "none"} if target == model else {})
     server = Path(temp) / "ds4-server"
     server.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n')
     server.chmod(0o755)
