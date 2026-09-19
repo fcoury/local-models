@@ -2,7 +2,13 @@
 set -euo pipefail
 
 MODEL_HOME="${MODEL_HOME:-$HOME/models}"
-MODELCTL_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+MODELCTL_SOURCE="${BASH_SOURCE[0]}"
+while [[ -L "$MODELCTL_SOURCE" ]]; do
+  MODELCTL_SOURCE_DIR="$(cd "$(dirname "$MODELCTL_SOURCE")" && pwd)"
+  MODELCTL_SOURCE="$(readlink "$MODELCTL_SOURCE")"
+  [[ "$MODELCTL_SOURCE" == /* ]] || MODELCTL_SOURCE="$MODELCTL_SOURCE_DIR/$MODELCTL_SOURCE"
+done
+MODELCTL_ROOT="$(cd "$(dirname "$MODELCTL_SOURCE")/.." && pwd)"
 STATE_HOME="${LOCAL_MODEL_STATE_HOME:-$HOME/Library/Application Support/local-models}"
 LOG_DIR="$STATE_HOME/logs"
 PID_DIR="$STATE_HOME/pids"
