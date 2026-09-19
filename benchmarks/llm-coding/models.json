@@ -32,6 +32,26 @@
       "billing": "Local Apple Silicon"
     },
     {
+      "modelctl_id": "signal-3.8-flash-next-iq4-xs",
+      "slug": "signal_3_8_flash_next_iq4_xs",
+      "label": "Signal 3.8 Flash Next AP-IQ4_XS (llama.cpp Metal)",
+      "provider": "local-models",
+      "provider_model": "signal-3.8-flash-next",
+      "tool_call": true,
+      "reasoning": true,
+      "billing": "Local Apple Silicon"
+    },
+    {
+      "modelctl_id": "signal-3.8-flash-next-iq4-xs-mtp",
+      "slug": "signal_3_8_flash_next_iq4_xs_mtp",
+      "label": "Signal 3.8 Flash Next AP-IQ4_XS MTP (llama.cpp Metal)",
+      "provider": "local-models",
+      "provider_model": "signal-3.8-flash-next",
+      "tool_call": true,
+      "reasoning": true,
+      "billing": "Local Apple Silicon"
+    },
+    {
       "modelctl_id": "deepseek-v4.1-flash-q2-32k",
       "slug": "deepseek_v4_1_flash_q2_32k",
       "label": "DeepSeek V4.1 Flash Q2 (DwarfStar SSD)",

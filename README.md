@@ -40,6 +40,9 @@ Available services:
   pinned fixed Jinja template for controlled Vibebench comparisons.
 - `qwen3.8-flash-next-iq4-xs` on port 8084; pinned upstream llama.cpp Metal
   runtime, single-slot 32K qualification profile, and embedded Qwen template.
+- `signal-3.8-flash-next-iq4-xs` on port 8086 and
+  `signal-3.8-flash-next-iq4-xs-mtp` on port 8087; mutually exclusive plain and
+  MTP profiles for controlled Signal comparisons.
 - `qwen3.8-27b-mlxfast-mtp-server` on port 8083; native MLX.fast MTP for
   OpenAI-compatible clients and `modelbench`.
 - `qwen3.6-35b-a3b` on port 8081.
@@ -52,6 +55,37 @@ Available services:
 Run `modelctl doctor` after moving or updating models. The complete inventory,
 including non-server assets and application-managed models, is in
 `models.toml`.
+
+## Signal 3.8 Flash Next
+
+The Signal profiles share the AP-IQ4_XS backbone and F16 vision projector in
+`~/models/gguf/qwen/signal-3.8-flash-next-ap-iq4-xs`. The MTP profile adds the
+separate Q8 draft head from the same directory. Both use a single 65,536-token
+slot, q8 KV cache, lazy expert loading, Signal's recommended sampling, and the
+pinned Signal MTP fork at `~/code/llama.cpp-signal38`. The checkout pins
+`LaurentZuijdwijk/llama.cpp`'s `vulkan/qwen4exp-rocmfpx` branch at
+`de39c1db9efb6bc8c94a2db4afa4607398c84998`, plus the one-line macOS
+portability patch in `compat/llama-signal38-macos.patch`. This separate checkout
+keeps the existing Qwen profile's qualified runtime unchanged.
+
+Run only one Signal profile at a time. For the normal MTP setup:
+
+```fish
+modelctl doctor signal-3.8-flash-next-iq4-xs-mtp
+modelctl omp signal-3.8-flash-next-iq4-xs-mtp --thinking off
+```
+
+For controlled measurements, start either profile and run the same smoke test:
+
+```bash
+modelctl start signal-3.8-flash-next-iq4-xs-mtp
+python3 tests/smoke_signal38.py --live signal-3.8-flash-next-iq4-xs-mtp
+modelctl stop signal-3.8-flash-next-iq4-xs-mtp
+```
+
+The MTP launcher uses four-token drafts and
+`--no-spec-draft-backend-sampling`, ensuring accepted draft tokens follow the
+configured min-p and other sampler settings.
 
 ## GLM 5.3 Flash evaluation profile
 

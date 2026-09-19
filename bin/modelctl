@@ -2,6 +2,7 @@
 set -euo pipefail
 
 MODEL_HOME="${MODEL_HOME:-$HOME/models}"
+MODELCTL_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 STATE_HOME="${LOCAL_MODEL_STATE_HOME:-$HOME/Library/Application Support/local-models}"
 LOG_DIR="$STATE_HOME/logs"
 PID_DIR="$STATE_HOME/pids"
@@ -18,6 +19,20 @@ QWEN38_FLASH_SHARD_1="Qwen3.8-Flash-Next-UD-IQ4_XS-00001-of-00003.gguf"
 QWEN38_FLASH_SHARD_2="Qwen3.8-Flash-Next-UD-IQ4_XS-00002-of-00003.gguf"
 QWEN38_FLASH_SHARD_3="Qwen3.8-Flash-Next-UD-IQ4_XS-00003-of-00003.gguf"
 QWEN38_FLASH_MMPROJ="mmproj-F16.gguf"
+SIGNAL38_MODEL_DIR="$MODEL_HOME/gguf/qwen/signal-3.8-flash-next-ap-iq4-xs"
+SIGNAL38_MODEL="Signal-3.8-Flash-Next-AP-IQ4_XS.gguf"
+SIGNAL38_MMPROJ="mmproj-F16.gguf"
+SIGNAL38_MTP="Qwen3.8-Flash-Next-MTP-Q8_0.gguf"
+SIGNAL38_MODEL_BYTES="90447294816"
+SIGNAL38_MMPROJ_BYTES="904004128"
+SIGNAL38_MTP_BYTES="4135893376"
+SIGNAL38_MODEL_SHA256="7fadb6b29035377204aed0d0085d3f58cc65fc7b4c3aa79f8f3f84fdfc304529"
+SIGNAL38_MMPROJ_SHA256="f456cd796fdbdef0cadb22710b54e0071b6cdf22c07963365baa898267aec517"
+SIGNAL38_MTP_SHA256="04f6521d237acdfcc1eec0211b61b22705ed7564e6097b1d664c358aac857eda"
+SIGNAL38_RUNTIME_ROOT="${SIGNAL38_RUNTIME_ROOT:-$HOME/code/llama.cpp-signal38}"
+SIGNAL38_RUNTIME_COMMIT="de39c1db9efb6bc8c94a2db4afa4607398c84998"
+SIGNAL38_RUNTIME_BUILD="build-signal-mtp"
+SIGNAL38_RUNTIME_PATCH="$MODELCTL_ROOT/compat/llama-signal38-macos.patch"
 DEEPSEEK41_DS4_ROOT="${DEEPSEEK41_DS4_ROOT:-$HOME/code/ds4-deepseek-v4.1-flash}"
 DEEPSEEK41_DS4_COMMIT="bd66c402070042bf0a79ad6ece8242de4c93680c"
 DEEPSEEK41_MODEL_BYTES="365713686528"
@@ -49,6 +64,8 @@ qwen3.8-27b
 qwen3.8-27b-fixed-v22-4
 qwen3.8-flash-next-iq4-xs
 qwen3.8-flash-next-iq2-mtp
+signal-3.8-flash-next-iq4-xs
+signal-3.8-flash-next-iq4-xs-mtp
 qwen3.8-27b-mlxfast-mtp
 qwen3.8-27b-mlxfast-mtp-server
 qwen3.6-35b-a3b
@@ -105,6 +122,8 @@ label() {
     qwen3.8-27b) echo "Qwen3.8 27B Q8 (llama.cpp)" ;;
     qwen3.8-27b-fixed-v22-4) echo "Qwen3.8 27B Q8 + Froggeric fixed template v22.4" ;;
     qwen3.8-flash-next-iq4-xs) echo "Qwen3.8 Flash Next UD-IQ4_XS 32K (pinned llama.cpp Metal)" ;;
+    signal-3.8-flash-next-iq4-xs) echo "Signal 3.8 Flash Next AP-IQ4_XS 64K (llama.cpp Metal)" ;;
+    signal-3.8-flash-next-iq4-xs-mtp) echo "Signal 3.8 Flash Next AP-IQ4_XS + MTP 64K (llama.cpp Metal)" ;;
     qwen3.8-27b-mlxfast-mtp) echo "Qwen3.8 27B MLX.fast native MTP harness" ;;
     qwen3.8-27b-mlxfast-mtp-server) echo "Qwen3.8 27B MLX.fast native MTP OpenAI server" ;;
     qwen3.6-35b-a3b) echo "Qwen3.6 35B A3B OptiQ 4-bit (MLX)" ;;
@@ -129,7 +148,7 @@ label() {
 kind() {
   case "$1" in
     deepseek-v4.1-flash-q2-32k) echo service ;;
-    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq4-xs|qwen3.8-flash-next-iq2-mtp|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|glm-5.3-flash-q2|glm-5.3-flash-q2-131k|minimax-h3-standard|minimax-h3-heretic|muse-glimmer-30b-server)
+    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq4-xs|qwen3.8-flash-next-iq2-mtp|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|glm-5.3-flash-q2|glm-5.3-flash-q2-131k|minimax-h3-standard|minimax-h3-heretic|muse-glimmer-30b-server)
       echo service
       ;;
     muse-glimmer-30b|qwen3.8-27b-mlxfast-mtp)
@@ -148,6 +167,8 @@ port() {
     qwen3.8-27b) echo 8080 ;;
     qwen3.8-27b-fixed-v22-4) echo 8085 ;;
     qwen3.8-flash-next-iq4-xs) echo 8084 ;;
+    signal-3.8-flash-next-iq4-xs) echo 8086 ;;
+    signal-3.8-flash-next-iq4-xs-mtp) echo 8087 ;;
     qwen3.8-27b-mlxfast-mtp-server) echo 8083 ;;
     qwen3.6-35b-a3b) echo 8081 ;;
     deepseek-v4-flash) echo 8000 ;;
@@ -168,6 +189,7 @@ api_model() {
     qwen3.8-27b) echo 'ggml-org/Qwen3.8-27B-GGUF:Q8_0' ;;
     qwen3.8-27b-fixed-v22-4) echo 'qwen3.8-27b-q8-fixed-v22.4' ;;
     qwen3.8-flash-next-iq4-xs) echo 'qwen3.8-flash-next-iq4-xs' ;;
+    signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp) echo 'signal-3.8-flash-next' ;;
     qwen3.8-27b-mlxfast-mtp-server) echo 'qwen3.8-27b-mlxfast-mtp-server' ;;
     qwen3.6-35b-a3b) echo 'mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit' ;;
     glm-5.3-flash-q2|glm-5.3-flash-q2-131k) echo 'glm-5.3-flash' ;;
@@ -181,6 +203,7 @@ context_size() {
     deepseek-v4.1-flash-q2-32k) echo 32768 ;;
     qwen3.8-27b|qwen3.8-27b-fixed-v22-4|muse-glimmer-30b-server) echo 131072 ;;
     qwen3.8-flash-next-iq4-xs|qwen3.8-flash-next-iq2-mtp) echo 32768 ;;
+    signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp) echo 65536 ;;
     qwen3.8-27b-mlxfast-mtp-server) echo 40960 ;;
     deepseek-v4-flash) echo 250000 ;;
     glm-5.3-flash-q2) echo 65536 ;;
@@ -192,7 +215,7 @@ context_size() {
 output_size() {
   case "$1" in
     deepseek-v4.1-flash-q2-32k) echo 16384 ;;
-    qwen3.8-flash-next-iq4-xs|qwen3.8-flash-next-iq2-mtp)
+    qwen3.8-flash-next-iq4-xs|qwen3.8-flash-next-iq2-mtp|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp)
       echo 16384
       ;;
     qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|glm-5.3-flash-q2|glm-5.3-flash-q2-131k|muse-glimmer-30b-server)
@@ -249,7 +272,7 @@ omp_family() {
     deepseek-v4.1-flash-q2-32k) echo deepseek41-ds4 ;;
     deepseek-v4-flash) echo deepseek-ds4 ;;
     glm-5.3-flash-q2|glm-5.3-flash-q2-131k) echo glm-ds4 ;;
-    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq4-xs|qwen3.8-flash-next-iq2-mtp|qwen3.8-27b-mlxfast-mtp-server) echo qwen ;;
+    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq4-xs|qwen3.8-flash-next-iq2-mtp|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp|qwen3.8-27b-mlxfast-mtp-server) echo qwen ;;
     *) return 1 ;;
   esac
 }
@@ -354,7 +377,7 @@ write_omp_models() {
     qwen)
       local input='["text"]'
       case "$id" in
-        qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq4-xs) input='["text", "image"]' ;;
+        qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp) input='["text", "image"]' ;;
       esac
       jq -n \
         --arg provider "$provider" \
@@ -499,6 +522,7 @@ model_path() {
     qwen3.8-27b) echo "$MODEL_HOME/aliases/qwen3.8-27b" ;;
     qwen3.8-27b-fixed-v22-4) echo "$MODEL_HOME/aliases/qwen3.8-27b" ;;
     qwen3.8-flash-next-iq4-xs) echo "$QWEN38_FLASH_MODEL_DIR" ;;
+    signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp) echo "$SIGNAL38_MODEL_DIR/$SIGNAL38_MODEL" ;;
     qwen3.8-27b-mlxfast-mtp) echo "$MODEL_HOME/mlx/qwen/qwen3.8-27b-mlxfast-mtp" ;;
     qwen3.8-27b-mlxfast-mtp-server) echo "$MODEL_HOME/mlx/qwen/qwen3.8-27b-mlxfast-mtp" ;;
     qwen3.6-35b-a3b) echo "$MODEL_HOME/aliases/qwen3.6-35b-a3b-mlx" ;;
@@ -567,6 +591,20 @@ ready() {
         "$(git -C "$QWEN38_FLASH_RUNTIME_ROOT" rev-parse HEAD 2>/dev/null)" == "$QWEN38_FLASH_RUNTIME_COMMIT" &&
         "$("$QWEN38_FLASH_RUNTIME_ROOT/build-make/bin/llama-server" --version 2>&1 | head -n 1)" == *"commit 9723942ad"* ]] &&
         git -C "$QWEN38_FLASH_RUNTIME_ROOT" diff --quiet HEAD --
+      ;;
+    signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp)
+      [[ -f "$SIGNAL38_MODEL_DIR/$SIGNAL38_MODEL" &&
+        "$(/usr/bin/stat -f '%z' "$SIGNAL38_MODEL_DIR/$SIGNAL38_MODEL")" == "$SIGNAL38_MODEL_BYTES" &&
+        -f "$SIGNAL38_MODEL_DIR/$SIGNAL38_MMPROJ" &&
+        "$(/usr/bin/stat -f '%z' "$SIGNAL38_MODEL_DIR/$SIGNAL38_MMPROJ")" == "$SIGNAL38_MMPROJ_BYTES" &&
+        -x "$SIGNAL38_RUNTIME_ROOT/$SIGNAL38_RUNTIME_BUILD/bin/llama-server" &&
+        "$(git -C "$SIGNAL38_RUNTIME_ROOT" rev-parse HEAD 2>/dev/null)" == "$SIGNAL38_RUNTIME_COMMIT" &&
+        -f "$SIGNAL38_RUNTIME_PATCH" ]] &&
+        cmp -s "$SIGNAL38_RUNTIME_PATCH" \
+          <(git -c diff.mnemonicprefix=false -C "$SIGNAL38_RUNTIME_ROOT" diff -U0 -- src/llama-ple-disk.cpp) &&
+        { [[ "$id" != signal-3.8-flash-next-iq4-xs-mtp ]] ||
+          [[ -f "$SIGNAL38_MODEL_DIR/$SIGNAL38_MTP" &&
+            "$(/usr/bin/stat -f '%z' "$SIGNAL38_MODEL_DIR/$SIGNAL38_MTP")" == "$SIGNAL38_MTP_BYTES" ]]; }
       ;;
     deepseek-v4-flash)
       [[ -f "$(model_path "$id")" &&
@@ -679,6 +717,25 @@ require_qwen_variant_peer_stopped() {
   [[ -n "$peer" ]] || return 0
   if service_loaded "$peer" || listening "$peer"; then
     echo "$id reuses the same Qwen weights as $peer; stop $peer before starting this profile." >&2
+    return 1
+  fi
+}
+
+signal_variant_peer() {
+  case "$1" in
+    signal-3.8-flash-next-iq4-xs) echo signal-3.8-flash-next-iq4-xs-mtp ;;
+    signal-3.8-flash-next-iq4-xs-mtp) echo signal-3.8-flash-next-iq4-xs ;;
+    *) return 1 ;;
+  esac
+}
+
+require_signal_variant_peer_stopped() {
+  local id="$1"
+  local peer
+  peer="$(signal_variant_peer "$id" 2>/dev/null || true)"
+  [[ -n "$peer" ]] || return 0
+  if service_loaded "$peer" || listening "$peer"; then
+    echo "$id reuses the same Signal weights as $peer; stop $peer before starting this profile." >&2
     return 1
   fi
 }
@@ -819,6 +876,38 @@ run_model() {
         --reasoning-effort medium \
         --image-min-tokens 1024
       ;;
+    signal-3.8-flash-next-iq4-xs)
+      require_signal_variant_peer_stopped "$id"
+      exec "$SIGNAL38_RUNTIME_ROOT/$SIGNAL38_RUNTIME_BUILD/bin/llama-server" \
+        --model "$SIGNAL38_MODEL_DIR/$SIGNAL38_MODEL" \
+        --mmproj "$SIGNAL38_MODEL_DIR/$SIGNAL38_MMPROJ" \
+        --alias 'signal-3.8-flash-next' \
+        --gpu-layers all --fit off --flash-attn on --lazy-mode on \
+        --ctx-size "$(context_size "$id")" --cache-type-k q8_0 --cache-type-v q8_0 \
+        --parallel 1 --host 127.0.0.1 --port "$(port "$id")" \
+        --cors-origins localhost --jinja \
+        --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0.05 \
+        --presence-penalty 0 --repeat-penalty 1.0 \
+        --reasoning on --reasoning-preserve --reasoning-effort medium \
+        --image-min-tokens 1024
+      ;;
+    signal-3.8-flash-next-iq4-xs-mtp)
+      require_signal_variant_peer_stopped "$id"
+      exec "$SIGNAL38_RUNTIME_ROOT/$SIGNAL38_RUNTIME_BUILD/bin/llama-server" \
+        --model "$SIGNAL38_MODEL_DIR/$SIGNAL38_MODEL" \
+        --mmproj "$SIGNAL38_MODEL_DIR/$SIGNAL38_MMPROJ" \
+        --alias 'signal-3.8-flash-next' \
+        --gpu-layers all --fit off --flash-attn on --lazy-mode on \
+        --ctx-size "$(context_size "$id")" --cache-type-k q8_0 --cache-type-v q8_0 \
+        --parallel 1 --host 127.0.0.1 --port "$(port "$id")" \
+        --cors-origins localhost --jinja \
+        --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0.05 \
+        --presence-penalty 0 --repeat-penalty 1.0 \
+        --reasoning on --reasoning-preserve --reasoning-effort medium \
+        --image-min-tokens 1024 \
+        --spec-type draft-mtp --model-draft "$SIGNAL38_MODEL_DIR/$SIGNAL38_MTP" \
+        --spec-draft-n-max 4 --no-spec-draft-backend-sampling
+      ;;
     qwen3.6-35b-a3b)
       export HF_HOME="$MODEL_HOME/mlx/qwen/qwen3.6-35b-a3b/hf-home"
       export HF_HUB_CACHE="$HF_HOME/hub"
@@ -950,7 +1039,7 @@ startup_timeout() {
   case "$1" in
     qwen3.8-flash-next-iq2-mtp) echo 180 ;;
     deepseek-v4.1-flash-q2-32k) echo 180 ;;
-    qwen3.8-flash-next-iq4-xs) echo 900 ;;
+    qwen3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp) echo 900 ;;
     qwen3.8-27b-mlxfast-mtp-server) echo 600 ;;
     glm-5.3-flash-q2|glm-5.3-flash-q2-131k) echo 180 ;;
     *) echo 45 ;;
@@ -979,6 +1068,7 @@ start_model() {
     exit 1
   fi
   require_qwen_variant_peer_stopped "$id"
+  require_signal_variant_peer_stopped "$id"
   require_glm_variant_peer_stopped "$id"
   require_deepseek41_exclusive "$id"
   if listening "$id"; then
@@ -1012,6 +1102,7 @@ start_model() {
       "DEEPSEEK41_DS4_ROOT=$DEEPSEEK41_DS4_ROOT" \
       "GLM53_DS4_ROOT=$GLM53_DS4_ROOT" \
       "QWEN38_FLASH_RUNTIME_ROOT=$QWEN38_FLASH_RUNTIME_ROOT" \
+      "SIGNAL38_RUNTIME_ROOT=$SIGNAL38_RUNTIME_ROOT" \
       "QWEN38_DS4_ROOT=$QWEN38_DS4_ROOT" \
       "PATH=$PATH" \
       "$self" __run "$id"
@@ -1157,6 +1248,26 @@ doctor() {
         echo "Qwen3.8 Flash Next vision projector SHA-256 mismatch." >&2
         return 1
       }
+    fi
+    if [[ "$requested_id" == signal-3.8-flash-next-iq4-xs || "$requested_id" == signal-3.8-flash-next-iq4-xs-mtp ]]; then
+      local signal_model_sha256 signal_mmproj_sha256 signal_mtp_sha256
+      signal_model_sha256="$(shasum -a 256 "$SIGNAL38_MODEL_DIR/$SIGNAL38_MODEL" | awk '{ print $1 }')"
+      signal_mmproj_sha256="$(shasum -a 256 "$SIGNAL38_MODEL_DIR/$SIGNAL38_MMPROJ" | awk '{ print $1 }')"
+      [[ "$signal_model_sha256" == "$SIGNAL38_MODEL_SHA256" ]] || {
+        echo "Signal model SHA-256 mismatch: $signal_model_sha256" >&2
+        return 1
+      }
+      [[ "$signal_mmproj_sha256" == "$SIGNAL38_MMPROJ_SHA256" ]] || {
+        echo "Signal vision projector SHA-256 mismatch: $signal_mmproj_sha256" >&2
+        return 1
+      }
+      if [[ "$requested_id" == signal-3.8-flash-next-iq4-xs-mtp ]]; then
+        signal_mtp_sha256="$(shasum -a 256 "$SIGNAL38_MODEL_DIR/$SIGNAL38_MTP" | awk '{ print $1 }')"
+        [[ "$signal_mtp_sha256" == "$SIGNAL38_MTP_SHA256" ]] || {
+          echo "Signal MTP draft SHA-256 mismatch: $signal_mtp_sha256" >&2
+          return 1
+        }
+      fi
     fi
     echo "All checks passed for $requested_id."
     return

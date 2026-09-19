@@ -1,0 +1,8 @@
+diff --git a/src/llama-ple-disk.cpp b/src/llama-ple-disk.cpp
+index dfc118ce5..c0b5b163b 100644
+--- a/src/llama-ple-disk.cpp
++++ b/src/llama-ple-disk.cpp
+@@ -17,0 +18,3 @@
++#ifndef O_DIRECT
++#define O_DIRECT 0
++#endif

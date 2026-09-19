@@ -81,6 +81,59 @@ consumer = "OMP, modelbench, and OpenAI-compatible clients"
 notes = "Text-only 32K profile with embedded MTP, exact sampling, 1024-token prefill chunks, and required SSD-backed PLE sidecar."
 
 [[models]]
+id = "signal-3.8-flash-next-iq4-xs"
+name = "Signal 3.8 Flash Next AP-IQ4_XS 64K"
+format = "GGUF"
+runner = "llama.cpp"
+path = "gguf/qwen/signal-3.8-flash-next-ap-iq4-xs/Signal-3.8-Flash-Next-AP-IQ4_XS.gguf"
+port = 8086
+context = 65536
+output = 16384
+status = "ready"
+api_model = "signal-3.8-flash-next"
+bytes = 90447294816
+sha256 = "7fadb6b29035377204aed0d0085d3f58cc65fc7b4c3aa79f8f3f84fdfc304529"
+source = "agentionai/Signal-3.8-Flash-Next-GGUF"
+source_revision = "c01924df1459d6c201fd6d61560432712448f6a6"
+runtime_path = "~/code/llama.cpp-signal38"
+runtime_commit = "de39c1db9efb6bc8c94a2db4afa4607398c84998"
+runtime_patch = "compat/llama-signal38-macos.patch"
+runtime_patch_sha256 = "8fd6370e918591cbb0cb0ac939bb0c01ff3717e1cbb9fbef75a74440073eb379"
+quantization = "AP-IQ4_XS"
+vision = true
+mtp = false
+consumer = "OpenCode, OpenCode 2, OMP, and modelbench"
+notes = "Plain single-slot baseline with q8 KV cache and Signal's recommended sampling. Run only one Signal profile at a time."
+
+[[models]]
+id = "signal-3.8-flash-next-iq4-xs-mtp"
+name = "Signal 3.8 Flash Next AP-IQ4_XS MTP 64K"
+format = "GGUF"
+runner = "llama.cpp"
+path = "gguf/qwen/signal-3.8-flash-next-ap-iq4-xs/Signal-3.8-Flash-Next-AP-IQ4_XS.gguf"
+port = 8087
+context = 65536
+output = 16384
+status = "ready"
+api_model = "signal-3.8-flash-next"
+bytes = 90447294816
+sha256 = "7fadb6b29035377204aed0d0085d3f58cc65fc7b4c3aa79f8f3f84fdfc304529"
+source = "agentionai/Signal-3.8-Flash-Next-GGUF"
+source_revision = "c01924df1459d6c201fd6d61560432712448f6a6"
+runtime_path = "~/code/llama.cpp-signal38"
+runtime_commit = "de39c1db9efb6bc8c94a2db4afa4607398c84998"
+runtime_patch = "compat/llama-signal38-macos.patch"
+runtime_patch_sha256 = "8fd6370e918591cbb0cb0ac939bb0c01ff3717e1cbb9fbef75a74440073eb379"
+quantization = "AP-IQ4_XS"
+vision = true
+mtp = true
+mtp_path = "gguf/qwen/signal-3.8-flash-next-ap-iq4-xs/Qwen3.8-Flash-Next-MTP-Q8_0.gguf"
+mtp_bytes = 4135893376
+mtp_sha256 = "04f6521d237acdfcc1eec0211b61b22705ed7564e6097b1d664c358aac857eda"
+consumer = "OpenCode, OpenCode 2, OMP, and modelbench"
+notes = "MTP comparison profile using four-token drafts and sampler-side verification. Run only one Signal profile at a time."
+
+[[models]]
 id = "qwen3.8-27b-mlxfast-mtp"
 name = "Qwen3.8 27B MLX.fast native MTP"
 format = "MLX"
