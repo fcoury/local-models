@@ -9,7 +9,7 @@ function __modelctl_complete_models
 end
 
 function __modelctl_needs_command
-    not __fish_seen_subcommand_from list status start run stop logs path endpoint omp doctor help
+    not __fish_seen_subcommand_from list status start run stop logs path endpoint omp dsh doctor help
 end
 
 function __modelctl_needs_model
@@ -18,7 +18,7 @@ function __modelctl_needs_model
 
     test (count $tokens) -eq 2; or return 1
     string match -q -- '-*' "$current"; and return 1
-    __fish_seen_subcommand_from status start run stop logs path endpoint omp doctor
+    __fish_seen_subcommand_from status start run stop logs path endpoint omp dsh doctor
 end
 
 function __modelctl_endpoint_options
@@ -53,7 +53,7 @@ function __modelctl_no_file_completion
     set -l tokens (commandline -opc)
 
     test (count $tokens) -le 2; and return 0
-    __fish_seen_subcommand_from run omp; and return 1
+    __fish_seen_subcommand_from run omp dsh; and return 1
     return 0
 end
 
@@ -78,7 +78,7 @@ complete -c modelctl -n '__modelctl_needs_model; and __fish_seen_subcommand_from
     -f -a '(__modelctl_complete_models models)'
 complete -c modelctl -n '__modelctl_needs_model; and __fish_seen_subcommand_from run' \
     -f -a '(__modelctl_complete_models runnable)'
-complete -c modelctl -n '__modelctl_needs_model; and __fish_seen_subcommand_from start stop logs endpoint' \
+complete -c modelctl -n '__modelctl_needs_model; and __fish_seen_subcommand_from start stop logs endpoint dsh' \
     -f -a '(__modelctl_complete_models services)'
 complete -c modelctl -n '__modelctl_needs_model; and __fish_seen_subcommand_from omp' \
     -f -a '(__modelctl_complete_models omp)'
@@ -110,3 +110,5 @@ complete -c modelctl -n __modelctl_mlxfast_server_arguments -f -a '--doctor' \
     -d 'Validate the native Swift server adapter'
 complete -c modelctl -n __modelctl_mlxfast_server_arguments -f -s h -l help \
     -d 'Show MLX.fast server help'
+
+complete -c modelctl -n __modelctl_needs_command -f -a dsh -d 'Run DeepSeek Harness PTC with local-model metadata'

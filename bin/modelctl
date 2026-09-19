@@ -457,6 +457,41 @@ run_omp() {
   return "$status"
 }
 
+# Reuse the selected server; modelctl start/stop remain its lifecycle controls.
+run_dsh() {
+  local id="$1"; shift
+  local prepare=false profile=web
+  if [[ "${1:-}" == --prepare ]]; then prepare=true; shift; fi
+  if [[ "${1:-}" == web || "${1:-}" == headless ]]; then profile="$1"; shift; fi
+  local dsh_root="${MODELCTL_DSH_ROOT:-$HOME/code/deepseek-harness}"
+  local dsh_home="${MODELCTL_DSH_HOME:-$STATE_HOME/dsh/$id}"
+  local helper metadata
+  command -v node >/dev/null && command -v python3 >/dev/null || {
+    echo "Node and Python 3 are required for modelctl dsh." >&2; return 1;
+  }
+  [[ -f "$dsh_root/apps/cli/lib/bin.js" && -f "$dsh_root/.dsh-build/client-build-environment.json" ]] || {
+    echo "Build DSH first: cd \"$dsh_root\" && corepack pnpm install --frozen-lockfile && corepack pnpm build" >&2
+    return 1
+  }
+  helper="$(python3 -c 'import pathlib, sys; print(pathlib.Path(sys.argv[1]).resolve().with_name("modelctl-dsh.py"))' "${BASH_SOURCE[0]}")"
+  metadata="$(endpoint "$id" --json)"
+  printf '%s\n' "$metadata" | python3 "$helper" "$dsh_root" "$dsh_home" "$profile"
+  if [[ "$prepare" == true ]]; then
+    echo "Prepared $dsh_home ($profile); no server or inference started."
+    return
+  fi
+  healthy "$id" || {
+    echo "$id is not healthy. Start it with: modelctl start $id" >&2
+    return 1
+  }
+  [[ "$profile" != web ]] || set -- --host 127.0.0.1 "$@"
+  DSH_HOME="$dsh_home" DSH_TOOLS_MODE=ptc \
+    MODELCTL_DSH_API_KEY=local-only DEEPSEEK_API_KEY=local-only \
+    DEEPSEEK_BASE_URL="$(printf '%s' "$metadata" | jq -r .base_url)" \
+    node "$dsh_root/apps/cli/lib/bin.js" --profile "$profile" \
+      --patch "$dsh_home/modelctl-$profile.patch.yml" "$@"
+}
+
 model_path() {
   case "$1" in
     qwen3.8-flash-next-iq2-mtp) echo "$QWEN38_DS4_MODEL_DIR/$QWEN38_DS4_MODEL" ;;
@@ -1170,6 +1205,8 @@ Commands:
                        Print the OpenAI-compatible endpoint metadata
   omp MODEL [OMP_ARGS]
                        Run OMP with generated model metadata; owns server lifecycle when needed
+  dsh MODEL [--prepare] [web|headless] [DSH_ARGS]
+                       Run PTC against an already-running server; default: web
   doctor [MODEL]       Validate all models, or one model and its runtime
 EOF
 }
@@ -1233,6 +1270,13 @@ case "$command_name" in
     id="$2"
     shift 2
     run_omp "$id" "$@"
+    ;;
+  dsh)
+    [[ -n "${2:-}" ]] || { usage >&2; exit 2; }
+    known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
+    id="$2"
+    shift 2
+    run_dsh "$id" "$@"
     ;;
   doctor)
     doctor "${2:-}"

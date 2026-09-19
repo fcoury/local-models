@@ -293,3 +293,72 @@ Inside an existing OMP session, choose `minimal` for the same behavior. At the p
 API low/medium/high/xhigh all map to V4.1 effort 75; max maps to 100.
 `doctor` verifies the entire 340.6 GiB artifact and can take several minutes.
 Run `python3 tests/test_deepseek41.py` for the profile's local regression check.
+
+## DeepSeek Harness (PTC)
+
+Build the existing DSH checkout once, and rebuild after updating it:
+
+```bash
+cd ~/code/deepseek-harness
+corepack pnpm install --frozen-lockfile
+corepack pnpm run build
+```
+
+`corepack` uses the checkout's pinned pnpm version. If an updated checkout fails
+with imports from a deleted package's `lib/types`, move that obsolete package's
+ignored `lib`/`node_modules` directory out of the checkout and rebuild.
+
+Prepare without starting a server or sending model requests:
+
+```bash
+modelctl dsh deepseek-v4.1-flash-q2-32k --prepare
+```
+
+Start the model if needed, then launch from the project you want to work on:
+
+```bash
+modelctl start deepseek-v4.1-flash-q2-32k
+cd ~/code/proxy
+modelctl dsh deepseek-v4.1-flash-q2-32k
+```
+
+The default is the DSH Web UI bound to localhost, with a browser folder picker.
+On first use, choose Add workspace and select your project. `Ctrl-C` closes the harness;
+the model server stays running. Use `modelctl stop MODEL` when finished. The
+launcher deliberately requires a healthy server and never switches models.
+
+The same command accepts other endpoint profiles with complete API model,
+context, and output metadata. For example, after stopping the previous model
+and starting Qwen:
+
+```bash
+modelctl dsh qwen3.8-27b
+modelctl dsh deepseek-v4.1-flash-q2-32k headless "Read the project and summarize its entry points."
+```
+
+Each model gets its own DSH home under
+`~/Library/Application Support/local-models/dsh/MODEL/`. The launcher regenerates
+only `modelctl-web.patch.yml` / `modelctl-headless.patch.yml` and
+`.agent-presets/modelctl-ptc/`; sessions, user settings and other presets persist.
+Use `MODELCTL_DSH_ROOT` for another DSH checkout or `MODELCTL_DSH_HOME` for a
+separate experiment. Extra arguments are passed to DSH, e.g. `--port 3081`.
+
+Defaults: upstream PTC coding tools, thinking off, no subagents, web search or skills,
+compaction at 60%, at most 4096 retained tokens and 8192 summary tokens (bounded
+by the model's output limit and one quarter of its context). The previous 2048
+summary cap caused repeated truncated checkpoints in a real 32K session.
+Restart DSH to load regenerated defaults; a session already full may need a fresh
+session with a short handoff because summarization also needs context space. Context
+and output limits come from `modelctl endpoint MODEL --json`, so new model
+profiles reuse this path. DeepSeek uses DSH's native adapter; other models use
+its OpenAI-compatible adapter, with Qwen's explicit `enable_thinking: false`.
+Model-specific tool protocol and coding quality still need a live check before
+calling a new model qualified. Copy the generated preset under a new name to
+customize it; don't edit generated files. Saved DSH model settings override the
+generated defaults.
+
+Offline regression check (no model needed):
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 tests/test_dsh.py
+```
