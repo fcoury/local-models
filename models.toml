@@ -53,6 +53,34 @@ consumer = "Vibebench LittleCoder evaluations"
 notes = "Single-slot 32K qualification profile using the embedded Qwen template and F16 vision projector. Long-context and MTP evaluations remain separate."
 
 [[models]]
+id = "qwen3.8-flash-next-iq2-mtp"
+name = "Qwen3.8 Flash Next IQ2 MTP 32K"
+format = "GGUF"
+runner = "DwarfStar (ds4-metal)"
+path = "gguf/qwen/qwen3.8-flash-next-ds4-iq2/Qwen3.8-Flash-Next-IQ2XXSImatrix-MXFP4Down-MTP.gguf"
+port = 8008
+context = 32768
+output = 16384
+status = "ready"
+api_model = "qwen3.8-flash-next"
+bytes = 50343093376
+sha256 = "31f1e193771a5f3fdaa7af5865e0417513e8e8cac37579d388052ca54c889d4b"
+source = "ivanfioravanti/Qwen3.8-Flash-Next-DS4-IQ2"
+source_revision = "672c52bbea7865352c8f0aa766c43939acf0f0d5"
+ple_path = "gguf/qwen/qwen3.8-flash-next-ds4-iq2/Qwen3.8-Flash-Next-PLE-Q4_1.gguf"
+ple_bytes = 32000157440
+ple_sha256 = "66db3ab390f4dd5063ecc89cc180f4713898577682347001bf64ab8e328527a1"
+ple_source = "ivanfioravanti/Qwen3.8-Flash-Next-DS4-Q4"
+ple_source_revision = "59a55fb819c82be7b162948282b50bd1a1e290b7"
+runtime_path = "~/code/ds4-qwen3.8-flash-next"
+runtime_commit = "ffd85d426313ace6dae805e9f2fb4424d5b427fd"
+quantization = "IQ2XXSImatrix-MXFP4Down"
+vision = false
+mtp = true
+consumer = "OMP, modelbench, and OpenAI-compatible clients"
+notes = "Text-only 32K profile with embedded MTP, exact sampling, 1024-token prefill chunks, and required SSD-backed PLE sidecar."
+
+[[models]]
 id = "qwen3.8-27b-mlxfast-mtp"
 name = "Qwen3.8 27B MLX.fast native MTP"
 format = "MLX"

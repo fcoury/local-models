@@ -72,6 +72,33 @@ The readiness check pins the DS4 source commit, verifies that the server binary
 is current, and checks the model's exact byte size. `doctor` additionally
 verifies the full 96.5 GB SHA-256, so it is intentionally slower than `status`.
 
+## Qwen3.8 Flash Next DwarfStar IQ2 MTP
+
+The `qwen3.8-flash-next-iq2-mtp` profile serves the tested IQ2 model with
+embedded MTP and exact sampling at `http://127.0.0.1:8008/v1`, using API model
+`qwen3.8-flash-next`. It has a 32,768-token context, a 16,384-token default
+output limit, 1,024-token prefill chunks, and text/tool support. Thinking and
+temperature are selected by the API client; OMP defaults to medium thinking.
+
+```fish
+modelctl omp qwen3.8-flash-next-iq2-mtp --thinking off
+# Or manage the API server yourself:
+modelctl start qwen3.8-flash-next-iq2-mtp
+modelctl endpoint qwen3.8-flash-next-iq2-mtp --json
+modelctl stop qwen3.8-flash-next-iq2-mtp
+```
+
+Weights and the required 32 GB PLE sidecar live in
+`~/models/gguf/qwen/qwen3.8-flash-next-ds4-iq2`; the pinned runtime is
+`~/code/ds4-qwen3.8-flash-next`. This is separate from the Unsloth IQ4 profile
+and has no vision encoder. Run one large model at a time.
+
+`modelctl doctor qwen3.8-flash-next-iq2-mtp` verifies both full SHA-256 hashes
+as well as runtime readiness. Fish completion discovers the profile automatically.
+The profile is also registered for `modelbench preflight` and `modelbench run`.
+For a short API completion, tool round trip, and streaming check, start the
+server and run `python3 tests/smoke_qwen38_ds4.py --live`.
+
 ## Qwen fixed-template comparison profile
 
 `qwen3.8-27b-fixed-v22-4` is a server profile, not another model download. It
