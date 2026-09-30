@@ -56,6 +56,26 @@ Run `modelctl doctor` after moving or updating models. The complete inventory,
 including non-server assets and application-managed models, is in
 `models.toml`.
 
+## MiMo V2.6 Flash through Sushi
+
+The `mimo-v2.6-flash-sushi-2.3bpw` trial uses the pinned Sushi 1.1.1 binary
+under `~/models/runtime/sushi-v1.1.1` and the pinned MiMo pack under
+`~/models/sushi/mimo-v2.6-flash-2.3bpw`. It serves a 128K context with a 32K
+default output limit on port 12345. MTP, 8-bit KV, and image input are enabled;
+Sushi does not use the pack's DFlash or audio-tokenizer assets.
+
+```fish
+modelctl doctor mimo-v2.6-flash-sushi-2.3bpw # verifies every weight hash; slow
+modelctl start mimo-v2.6-flash-sushi-2.3bpw
+modelctl endpoint mimo-v2.6-flash-sushi-2.3bpw --json
+modelctl omp mimo-v2.6-flash-sushi-2.3bpw
+modelctl stop mimo-v2.6-flash-sushi-2.3bpw
+```
+
+The OMP command uses Sushi's agent launcher, which writes its configuration
+under `~/.sushi/omp` instead of changing the regular OMP settings. This large
+model profile runs alone among `modelctl` services to leave memory for macOS.
+
 ## Signal 3.8 Flash Next
 
 The Signal profiles share the AP-IQ4_XS backbone and F16 vision projector in

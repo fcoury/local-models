@@ -38,6 +38,7 @@ mkdir -p \
   "$MODEL_HOME/managed" \
   "$MODEL_HOME/mlx" \
   "$MODEL_HOME/runtime" \
+  "$MODEL_HOME/sushi" \
   "$MODEL_HOME/templates/qwen3.8" \
   "$STATE_HOME/logs" \
   "$STATE_HOME/pids"

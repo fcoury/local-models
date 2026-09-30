@@ -2,6 +2,28 @@ version = 1
 model_home = "~/models"
 
 [[models]]
+id = "mimo-v2.6-flash-sushi-2.3bpw"
+name = "MiMo V2.6 Flash Sushi 2.3bpw 128K"
+format = "Sushi EXL3/safetensors"
+runner = "Sushi 1.1.1"
+path = "sushi/mimo-v2.6-flash-2.3bpw"
+port = 12345
+context = 131072
+output = 32768
+status = "downloading"
+api_model = "mimo-v2.6-flash-2.3bpw"
+bytes = 103389857373
+source = "beamster/MiMo-V2.6-Flash-Sushi-2.3bpw"
+source_revision = "d976d4ed4f6f1a797e44b9bf0510a21bb86b7216"
+runtime_path = "~/models/runtime/sushi-v1.1.1/sushi-macos-arm64"
+runtime_commit = "711572e91c491b50b973e57045b8d4a7f5137764"
+runtime_sha256 = "6ce1797b52822d5a5117d89ae69d13aee4c5c3093b2f9150b04c6da742b24fb0"
+vision = true
+mtp = true
+consumer = "MiMo evaluation through modelctl and Sushi"
+notes = "Pinned Sushi pack without its unused DFlash, audio tokenizer, and card images. Port 12345 also supports sushi launch omp."
+
+[[models]]
 id = "qwen3.8-27b"
 name = "Qwen3.8 27B Q8"
 format = "GGUF"
