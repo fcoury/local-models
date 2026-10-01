@@ -75,6 +75,10 @@ modelctl stop mimo-v2.6-flash-sushi-2.3bpw
 The OMP command uses Sushi's agent launcher, which writes its configuration
 under `~/.sushi/omp` instead of changing the regular OMP settings. This large
 model profile runs alone among `modelctl` services to leave memory for macOS.
+The profile skips Sushi's free-memory preflight because macOS can reclaim the
+file cache left by the download; start it only when system memory pressure is
+low. In the direct API trial, automatic tool choice returned valid arguments,
+while `tool_choice=required` returned an empty argument object.
 
 ## Signal 3.8 Flash Next
 

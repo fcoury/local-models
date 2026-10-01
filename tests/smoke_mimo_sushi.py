@@ -70,8 +70,11 @@ tools = [{"type": "function", "function": {
         "required": ["key"],
     },
 }}]
-messages = [{"role": "user", "content": "Call get_code with key alpha. Do not guess its result."}]
-with chat(messages, tools=tools, tool_choice="required") as response:
+messages = [
+    {"role": "system", "content": "When asked for a code, call get_code with the exact key. Wait for its result."},
+    {"role": "user", "content": "What is the code for key alpha? Call get_code with key alpha."},
+]
+with chat(messages, tools=tools, tool_choice="auto") as response:
     choice = json.load(response)["choices"][0]
     assert choice["finish_reason"] == "tool_calls", choice
     assistant = choice["message"]

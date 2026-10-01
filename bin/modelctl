@@ -836,6 +836,7 @@ run_model() {
         --max-tokens "$(output_size "$id")" \
         --kv-quant 8 --prefill-chunk 2048 \
         --prefix-cache-mem 1GB \
+        --skip-mem-preflight \
         --log-file off --no-update-check "$@"
       ;;
     qwen3.8-flash-next-iq2-mtp)
@@ -1265,7 +1266,7 @@ doctor() {
           echo "MiMo Sushi Git blob mismatch: $name" >&2
           return 1
         }
-      done < <(jq -r '.files[] | select(.git_blob != null) | [.git_blob, .path] | @tsv' "$SUSHI_MIMO_MANIFEST")
+      done < <(jq -r '.files[] | select(.sha256 == null and .git_blob != null) | [.git_blob, .path] | @tsv' "$SUSHI_MIMO_MANIFEST")
     fi
     if [[ "$requested_id" == muse-glimmer-30b ]]; then
       if ! "$MUSE_GLIMMER_HARNESS_VENV/bin/python" \
