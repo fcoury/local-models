@@ -32,9 +32,12 @@ ensure_link() {
 mkdir -p \
   "$MODEL_HOME/aliases" \
   "$MODEL_HOME/cache" \
+  "$MODEL_HOME/cache/huggingface" \
   "$MODEL_HOME/diffusers" \
   "$MODEL_HOME/gguf" \
   "$MODEL_HOME/llm" \
+  "$MODEL_HOME/llm/qwen" \
+  "$MODEL_HOME/llm/strands" \
   "$MODEL_HOME/managed" \
   "$MODEL_HOME/mlx" \
   "$MODEL_HOME/runtime" \
@@ -50,6 +53,25 @@ ensure_link "$REPO_DIR/env.sh" "$HOME/.config/local-models/env"
 ensure_link "$REPO_DIR/compat" "$MODEL_HOME/scripts"
 ensure_link "$REPO_DIR/templates/qwen3.8/froggeric-v22.4.jinja" "$MODEL_HOME/templates/qwen3.8/froggeric-v22.4.jinja"
 ensure_link "$REPO_DIR/templates/qwen3.8/froggeric-v22.4.sha256" "$MODEL_HOME/templates/qwen3.8/froggeric-v22.4.sha256"
+
+# The pinned base weights live in the canonical model tree. Expose them as the
+# exact Hub revision expected by the Decider loader, with its offline file list.
+STRANDS_BASE_REVISION="b1485b2fa6dfa1287294f269f5fb618e03d52d7c"
+STRANDS_HUB_DIR="$MODEL_HOME/cache/huggingface/hub/models--Qwen--Qwen3.5-2B-Base"
+ensure_link "$MODEL_HOME/llm/qwen/qwen3.5-2b-base" "$STRANDS_HUB_DIR/snapshots/$STRANDS_BASE_REVISION"
+mkdir -p "$STRANDS_HUB_DIR/trees"
+tree_tmp="$(mktemp "$STRANDS_HUB_DIR/trees/.strands-decider.XXXXXX")"
+if ! jq -e --arg repo "Qwen/Qwen3.5-2B-Base" '
+  .repos[] | select(.repo == $repo) |
+  {format_version: 1, files: (.files | map({key: .path,
+    value: ({size: .size, blob_id: .git_blob} +
+      (if .sha256 then {lfs_sha256: .sha256, lfs_size: .size} else {} end))}) |
+    from_entries)}
+' "$REPO_DIR/manifests/strands-decider-v21.json" > "$tree_tmp"; then
+  rm -f "$tree_tmp"
+  exit 1
+fi
+mv "$tree_tmp" "$STRANDS_HUB_DIR/trees/$STRANDS_BASE_REVISION.json"
 
 echo
 echo "Bootstrap complete."

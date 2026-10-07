@@ -8,6 +8,8 @@ import tempfile
 
 root = Path(__file__).resolve().parents[1]
 source = (root / "bin/modelctl").read_text().split('command_name="${1:-}"')[0]
+source = source.replace('MODELCTL_SOURCE="${BASH_SOURCE[0]}"',
+                        f'MODELCTL_SOURCE="{root / "bin/modelctl"}"')
 model = "deepseek-v4.1-flash-q2-32k"
 with tempfile.TemporaryDirectory() as temp:
     env = dict(os.environ, LOCAL_MODEL_STATE_HOME=temp, MODELCTL_OMP_AGENT_DIR=temp,
@@ -44,9 +46,17 @@ with tempfile.TemporaryDirectory() as temp:
     assert "--ssd-streaming" in args and args[args.index("--backend") + 1] == "metal"
     for flag, value in [("--ctx", "32768"), ("--tokens", "16384"), ("--port", "8009")]:
         assert args[args.index(flag) + 1] == value
-    run(quiet + f"require_deepseek41_exclusive {model}")
+    run(quiet + f"require_large_model_exclusive {model}")
     run('service_loaded() { [[ "$1" == glm-5.3-flash-q2 ]]; }; listening() { return 1; }; '
-        + f"require_deepseek41_exclusive {model}", ok=False)
+        + f"require_large_model_exclusive {model}", ok=False)
     run('service_loaded() { return 1; }; listening() { [[ "$1" == ' + model + ' ]]; }; '
-        + "require_deepseek41_exclusive glm-5.3-flash-q2", ok=False)
+        + "require_large_model_exclusive glm-5.3-flash-q2", ok=False)
+    decider = "strands-decider-2b-v21"
+    mimo = "mimo-v2.6-flash-sushi-2.3bpw"
+    run('service_loaded() { [[ "$1" == ' + mimo + ' ]]; }; listening() { return 1; }; '
+        + f"require_large_model_exclusive {decider}")
+    run('service_loaded() { [[ "$1" == ' + decider + ' ]]; }; listening() { return 1; }; '
+        + f"require_large_model_exclusive {mimo}")
+    run('service_loaded() { [[ "$1" == ' + model + ' ]]; }; listening() { return 1; }; '
+        + f"require_large_model_exclusive {decider}", ok=False)
 print("DeepSeek V4.1 profile checks passed")

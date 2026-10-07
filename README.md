@@ -51,10 +51,37 @@ Available services:
   Vibebench evaluations.
 - `minimax-h3-standard` on port 11234.
 - `minimax-h3-heretic` on port 11235.
+- `strands-decider-2b-v21` on port 8010; MLX typed decisions at
+  `/v1/systemone`.
 
 Run `modelctl doctor` after moving or updating models. The complete inventory,
 including non-server assets and application-managed models, is in
 `models.toml`.
+
+## Strands Decider 2B v21
+
+The pinned v21 checkpoint uses a Qwen3.5 2B base, a LoRA adapter, and a pointer
+head. Its MLX service answers yes/no (`noul`), choice, and ordered-score
+questions about a supplied state. It does not generate chat text. The current
+project reference is v21; the announcement used v19. This profile
+uses the text path; upstream image inference currently requires the torch
+backend.
+
+```fish
+modelctl doctor strands-decider-2b-v21
+modelctl start strands-decider-2b-v21
+modelctl endpoint strands-decider-2b-v21 --json
+curl -sS http://127.0.0.1:8010/v1/systemone \
+  -H 'content-type: application/json' \
+  -d '{"state":"Help! My payouts have been failing for 3 days!", "questions":{"team":{"type":"choice","instructions":"Which team should handle this?","criteria":{"billing":"payment and account problems","sales":"pricing and purchases","retail":"store visits"}}}}'
+modelctl stop strands-decider-2b-v21
+```
+
+The adapter and base weights live under `~/models/llm`; the source checkout is
+at `~/code/strands-decider`, and its isolated Python environment is under
+`~/models/runtime`. `./bootstrap.sh` exposes the pinned base revision through
+`~/models/cache/huggingface` for offline loading. It can run alongside the
+MiMo 128K profile, but the DeepSeek V4.1 profile remains exclusive.
 
 ## MiMo V2.6 Flash through Sushi
 
@@ -74,7 +101,8 @@ modelctl stop mimo-v2.6-flash-sushi-2.3bpw
 
 The OMP command uses Sushi's agent launcher, which writes its configuration
 under `~/.sushi/omp` instead of changing the regular OMP settings. This large
-model profile runs alone among `modelctl` services to leave memory for macOS.
+model profile can share the host with the small Strands Decider service; it
+remains exclusive with the other managed model servers to leave memory for macOS.
 The profile skips Sushi's free-memory preflight because macOS can reclaim the
 file cache left by the download; start it only when system memory pressure is
 low. In the direct API trial, automatic tool choice returned valid arguments,

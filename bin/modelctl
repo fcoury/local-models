@@ -58,6 +58,15 @@ QWEN38_DS4_PLE="Qwen3.8-Flash-Next-PLE-Q4_1.gguf"
 SUSHI_MIMO_MODEL_DIR="$MODEL_HOME/sushi/mimo-v2.6-flash-2.3bpw"
 SUSHI_MIMO_RUNTIME_ROOT="${SUSHI_MIMO_RUNTIME_ROOT:-$MODEL_HOME/runtime/sushi-v1.1.1/sushi-macos-arm64}"
 SUSHI_MIMO_MANIFEST="$MODELCTL_ROOT/manifests/mimo-v2.6-flash-sushi-2.3bpw.json"
+STRANDS_DECIDER_DIR="$MODEL_HOME/llm/strands/strands-decider-2b-hobson-v21"
+STRANDS_DECIDER_BASE_DIR="$MODEL_HOME/llm/qwen/qwen3.5-2b-base"
+STRANDS_DECIDER_SOURCE="${STRANDS_DECIDER_SOURCE:-$HOME/code/strands-decider}"
+STRANDS_DECIDER_VENV="${STRANDS_DECIDER_VENV:-$MODEL_HOME/runtime/strands-decider-v21-venv}"
+STRANDS_DECIDER_REVISION="3e94e9d84c620ed5a95f1a3310c3decb971e261c"
+STRANDS_DECIDER_BASE_REVISION="b1485b2fa6dfa1287294f269f5fb618e03d52d7c"
+STRANDS_DECIDER_MANIFEST="$MODELCTL_ROOT/manifests/strands-decider-v21.json"
+STRANDS_DECIDER_HF_SNAPSHOT="$MODEL_HOME/cache/huggingface/hub/models--Qwen--Qwen3.5-2B-Base/snapshots/$STRANDS_DECIDER_BASE_REVISION"
+STRANDS_DECIDER_HF_TREE="$MODEL_HOME/cache/huggingface/hub/models--Qwen--Qwen3.5-2B-Base/trees/$STRANDS_DECIDER_BASE_REVISION.json"
 GLM53_DS4_ROOT="${GLM53_DS4_ROOT:-$HOME/code/ds4-glm-5.3-flash}"
 GLM53_DS4_COMMIT="a3db66feefb624585277c33261c52e6521e76421"
 GLM53_MODEL_BYTES="96505816384"
@@ -74,6 +83,7 @@ qwen3.8-27b-fixed-v22-4
 qwen3.8-flash-next-iq4-xs
 qwen3.8-flash-next-iq2-mtp
 mimo-v2.6-flash-sushi-2.3bpw
+strands-decider-2b-v21
 signal-3.8-flash-next-iq4-xs
 signal-3.8-flash-next-iq4-xs-mtp
 qwen3.8-27b-mlxfast-mtp
@@ -133,6 +143,7 @@ label() {
     qwen3.8-27b-fixed-v22-4) echo "Qwen3.8 27B Q8 + Froggeric fixed template v22.4" ;;
     qwen3.8-flash-next-iq4-xs) echo "Qwen3.8 Flash Next UD-IQ4_XS 32K (pinned llama.cpp Metal)" ;;
     mimo-v2.6-flash-sushi-2.3bpw) echo "MiMo V2.6 Flash Sushi 2.3bpw 128K (Sushi Metal)" ;;
+    strands-decider-2b-v21) echo "Strands Decider 2B v21 (MLX decision service)" ;;
     signal-3.8-flash-next-iq4-xs) echo "Signal 3.8 Flash Next AP-IQ4_XS 64K (llama.cpp Metal)" ;;
     signal-3.8-flash-next-iq4-xs-mtp) echo "Signal 3.8 Flash Next AP-IQ4_XS + MTP 64K (llama.cpp Metal)" ;;
     qwen3.8-27b-mlxfast-mtp) echo "Qwen3.8 27B MLX.fast native MTP harness" ;;
@@ -159,7 +170,7 @@ label() {
 kind() {
   case "$1" in
     deepseek-v4.1-flash-q2-32k) echo service ;;
-    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq4-xs|qwen3.8-flash-next-iq2-mtp|mimo-v2.6-flash-sushi-2.3bpw|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|glm-5.3-flash-q2|glm-5.3-flash-q2-131k|minimax-h3-standard|minimax-h3-heretic|muse-glimmer-30b-server)
+    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq4-xs|qwen3.8-flash-next-iq2-mtp|mimo-v2.6-flash-sushi-2.3bpw|strands-decider-2b-v21|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|glm-5.3-flash-q2|glm-5.3-flash-q2-131k|minimax-h3-standard|minimax-h3-heretic|muse-glimmer-30b-server)
       echo service
       ;;
     muse-glimmer-30b|qwen3.8-27b-mlxfast-mtp)
@@ -175,6 +186,7 @@ port() {
   case "$1" in
     qwen3.8-flash-next-iq2-mtp) echo 8008 ;;
     mimo-v2.6-flash-sushi-2.3bpw) echo 12345 ;;
+    strands-decider-2b-v21) echo 8010 ;;
     deepseek-v4.1-flash-q2-32k) echo 8009 ;;
     qwen3.8-27b) echo 8080 ;;
     qwen3.8-27b-fixed-v22-4) echo 8085 ;;
@@ -198,6 +210,7 @@ api_model() {
     deepseek-v4-flash) echo deepseek-v4-flash ;;
     qwen3.8-flash-next-iq2-mtp) echo qwen3.8-flash-next ;;
     mimo-v2.6-flash-sushi-2.3bpw) echo mimo-v2.6-flash-2.3bpw ;;
+    strands-decider-2b-v21) echo strands-decider-2b-hobson-v21 ;;
     deepseek-v4.1-flash-q2-32k) echo deepseek-v4.1-flash ;;
     qwen3.8-27b) echo 'ggml-org/Qwen3.8-27B-GGUF:Q8_0' ;;
     qwen3.8-27b-fixed-v22-4) echo 'qwen3.8-27b-q8-fixed-v22.4' ;;
@@ -217,6 +230,7 @@ context_size() {
     qwen3.8-27b|qwen3.8-27b-fixed-v22-4|muse-glimmer-30b-server) echo 131072 ;;
     qwen3.8-flash-next-iq4-xs|qwen3.8-flash-next-iq2-mtp) echo 32768 ;;
     mimo-v2.6-flash-sushi-2.3bpw) echo 131072 ;;
+    strands-decider-2b-v21) echo 4096 ;;
     signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp) echo 65536 ;;
     qwen3.8-27b-mlxfast-mtp-server) echo 40960 ;;
     deepseek-v4-flash) echo 250000 ;;
@@ -253,6 +267,28 @@ endpoint() {
     echo "$id does not expose an OpenAI-compatible endpoint." >&2
     return 2
   }
+
+  if [[ "$id" == strands-decider-2b-v21 ]]; then
+    service_port="$(port "$id")"
+    base_url="http://127.0.0.1:$service_port/v1"
+    if [[ "$output_format" == --json ]]; then
+      command -v jq >/dev/null 2>&1 || {
+        echo "jq is required for JSON endpoint output." >&2
+        return 1
+      }
+      jq -n --arg id "$id" --arg base_url "$base_url" \
+        --arg api_model "$(api_model "$id")" --argjson context "$(context_size "$id")" \
+        '{id: $id, protocol: "systemone", base_url: $base_url,
+          decision_url: ($base_url + "/systemone"), api_model: $api_model,
+          context: $context, output: null}'
+    elif [[ "$output_format" == text ]]; then
+      printf '%s/systemone\n' "$base_url"
+    else
+      echo "Unknown endpoint output format: $output_format" >&2
+      return 2
+    fi
+    return
+  fi
 
   service_port="$(port "$id")"
   base_url="http://127.0.0.1:$service_port/v1"
@@ -438,6 +474,10 @@ write_omp_models() {
 run_omp() {
   local id="$1"
   shift
+  if [[ "$id" == strands-decider-2b-v21 ]]; then
+    echo "$id scores choices and does not support OMP chat." >&2
+    return 2
+  fi
   local selector
   local owned_server=false
 
@@ -506,6 +546,10 @@ run_omp() {
 # Reuse the selected server; modelctl start/stop remain its lifecycle controls.
 run_dsh() {
   local id="$1"; shift
+  if [[ "$id" == strands-decider-2b-v21 ]]; then
+    echo "$id scores choices and does not support DSH chat." >&2
+    return 2
+  fi
   local prepare=false profile=web
   if [[ "${1:-}" == --prepare ]]; then prepare=true; shift; fi
   if [[ "${1:-}" == web || "${1:-}" == headless ]]; then profile="$1"; shift; fi
@@ -540,6 +584,7 @@ run_dsh() {
 
 model_path() {
   case "$1" in
+    strands-decider-2b-v21) echo "$STRANDS_DECIDER_DIR" ;;
     mimo-v2.6-flash-sushi-2.3bpw) echo "$SUSHI_MIMO_MODEL_DIR" ;;
     qwen3.8-flash-next-iq2-mtp) echo "$QWEN38_DS4_MODEL_DIR/$QWEN38_DS4_MODEL" ;;
     deepseek-v4.1-flash-q2-32k) echo "$MODEL_HOME/gguf/deepseek/deepseek-v4.1-flash-q2/DeepSeek-V4.1-Flash-Q2.gguf" ;;
@@ -583,9 +628,31 @@ sushi_mimo_sizes_match() {
   [[ -z "$(find "$SUSHI_MIMO_MODEL_DIR" -name '*.aria2' -print -quit)" ]]
 }
 
+strands_decider_sizes_match() {
+  [[ -f "$STRANDS_DECIDER_MANIFEST" ]] || return 1
+  local count=0 root expected name path
+  while IFS=$'\t' read -r root expected name; do
+    path="$MODEL_HOME/$root/$name"
+    [[ -f "$path" && "$(/usr/bin/stat -f '%z' "$path")" == "$expected" ]] || return 1
+    count=$((count + 1))
+  done < <(jq -r '.repos[] | .path as $root | .files[] | [$root, .size, .path] | @tsv' "$STRANDS_DECIDER_MANIFEST")
+  [[ "$count" == 39 &&
+    -z "$(find "$STRANDS_DECIDER_DIR" "$STRANDS_DECIDER_BASE_DIR" -name '*.aria2' -print -quit)" ]]
+}
+
 ready() {
   local id="$1"
   case "$id" in
+    strands-decider-2b-v21)
+      [[ -x "$STRANDS_DECIDER_VENV/bin/strands-decider" &&
+        -f "$STRANDS_DECIDER_DIR/strands_decider_config.json" &&
+        -f "$STRANDS_DECIDER_BASE_DIR/config.json" &&
+        -L "$STRANDS_DECIDER_HF_SNAPSHOT" &&
+        -f "$STRANDS_DECIDER_HF_TREE" &&
+        "$(readlink "$STRANDS_DECIDER_HF_SNAPSHOT")" == "$STRANDS_DECIDER_BASE_DIR" &&
+        "$(git -C "$STRANDS_DECIDER_SOURCE" rev-parse HEAD 2>/dev/null)" == "$STRANDS_DECIDER_REVISION" ]] &&
+        strands_decider_sizes_match
+      ;;
     mimo-v2.6-flash-sushi-2.3bpw)
       [[ -x "$SUSHI_MIMO_RUNTIME_ROOT/sushi" &&
         -f "$SUSHI_MIMO_MODEL_DIR/config.json" &&
@@ -712,6 +779,10 @@ healthy() {
   local service_port
   service_port="$(port "$id")"
   case "$id" in
+    strands-decider-2b-v21)
+      curl -fsS --max-time 2 "http://127.0.0.1:$service_port/health" 2>/dev/null |
+        jq -e '.status == "ok" and .model == "strands-decider-2b-hobson-v21" and .device == "mlx"' >/dev/null 2>&1
+      ;;
     mimo-v2.6-flash-sushi-2.3bpw)
       curl -fsS --max-time 2 "http://127.0.0.1:$service_port/v1/models" 2>/dev/null |
         jq -e '.data | any(.id == "mimo-v2.6-flash-2.3bpw" and .loaded == true and .state == "ready")' >/dev/null 2>&1
@@ -805,17 +876,26 @@ require_glm_variant_peer_stopped() {
   fi
 }
 
-# These profiles consume most of a 128 GiB host. Serialize managed models.
+# These profiles consume most of a 128 GiB host. The 2B decision service can
+# coexist with MiMo's 128K profile, but remains exclusive with DeepSeek V4.1.
 require_large_model_exclusive() {
   local id="$1" peer
   if [[ "$id" == deepseek-v4.1-flash-q2-32k || "$id" == mimo-v2.6-flash-sushi-2.3bpw ]]; then
     while IFS= read -r peer; do
       [[ "$peer" != "$id" && "$(kind "$peer")" == service ]] || continue
+      if [[ "$id" == mimo-v2.6-flash-sushi-2.3bpw && "$peer" == strands-decider-2b-v21 ]]; then
+        continue
+      fi
       if service_loaded "$peer" || listening "$peer"; then
         echo "Stop $peer before starting $id." >&2
         return 1
       fi
     done < <(models)
+  elif [[ "$id" == strands-decider-2b-v21 ]]; then
+    if service_loaded deepseek-v4.1-flash-q2-32k || listening deepseek-v4.1-flash-q2-32k; then
+      echo "Stop deepseek-v4.1-flash-q2-32k before starting $id." >&2
+      return 1
+    fi
   elif service_loaded deepseek-v4.1-flash-q2-32k || listening deepseek-v4.1-flash-q2-32k ||
        service_loaded mimo-v2.6-flash-sushi-2.3bpw || listening mimo-v2.6-flash-sushi-2.3bpw; then
     echo "Stop the active large-model profile before starting $id." >&2
@@ -828,6 +908,13 @@ run_model() {
   shift
   require_large_model_exclusive "$id"
   case "$id" in
+    strands-decider-2b-v21)
+      exec /usr/bin/env \
+        "HF_HOME=$MODEL_HOME/cache/huggingface" "HF_HUB_OFFLINE=1" \
+        "$STRANDS_DECIDER_VENV/bin/strands-decider" serve "$STRANDS_DECIDER_DIR" \
+        --device mlx --host 127.0.0.1 --port "$(port "$id")" \
+        --model-name "$(api_model "$id")" --strict-window "$@"
+      ;;
     mimo-v2.6-flash-sushi-2.3bpw)
       exec "$SUSHI_MIMO_RUNTIME_ROOT/sushi" serve \
         --model "$SUSHI_MIMO_MODEL_DIR" \
@@ -1095,6 +1182,7 @@ status_one() {
 
 startup_timeout() {
   case "$1" in
+    strands-decider-2b-v21) echo 180 ;;
     mimo-v2.6-flash-sushi-2.3bpw) echo 900 ;;
     qwen3.8-flash-next-iq2-mtp) echo 180 ;;
     deepseek-v4.1-flash-q2-32k) echo 180 ;;
@@ -1164,6 +1252,8 @@ start_model() {
       "SIGNAL38_RUNTIME_ROOT=$SIGNAL38_RUNTIME_ROOT" \
       "QWEN38_DS4_ROOT=$QWEN38_DS4_ROOT" \
       "SUSHI_MIMO_RUNTIME_ROOT=$SUSHI_MIMO_RUNTIME_ROOT" \
+      "STRANDS_DECIDER_SOURCE=$STRANDS_DECIDER_SOURCE" \
+      "STRANDS_DECIDER_VENV=$STRANDS_DECIDER_VENV" \
       "PATH=$PATH" \
       "$self" __run "$id"
 
@@ -1267,6 +1357,34 @@ doctor() {
           return 1
         }
       done < <(jq -r '.files[] | select(.sha256 == null and .git_blob != null) | [.git_blob, .path] | @tsv' "$SUSHI_MIMO_MANIFEST")
+    fi
+    if [[ "$requested_id" == strands-decider-2b-v21 ]]; then
+      local root expected name actual path file_size
+      git -C "$STRANDS_DECIDER_SOURCE" diff --quiet HEAD -- || {
+        echo "Strands Decider source checkout has local changes." >&2
+        return 1
+      }
+      jq -e --arg revision "$STRANDS_DECIDER_BASE_REVISION" \
+        '.base_model == "Qwen/Qwen3.5-2B-Base" and .base_model_revision == $revision' \
+        "$STRANDS_DECIDER_DIR/provenance.json" >/dev/null || return 1
+      while IFS=$'\t' read -r root expected name; do
+        path="$MODEL_HOME/$root/$name"
+        actual="$(shasum -a 256 "$path" | awk '{print $1}')"
+        [[ "$actual" == "$expected" ]] || {
+          echo "Strands Decider SHA-256 mismatch: $root/$name" >&2
+          return 1
+        }
+      done < <(jq -r '.repos[] | .path as $root | .files[] | select(.sha256 != null) | [$root, .sha256, .path] | @tsv' "$STRANDS_DECIDER_MANIFEST")
+      while IFS=$'\t' read -r root expected name; do
+        path="$MODEL_HOME/$root/$name"
+        file_size="$(/usr/bin/stat -f '%z' "$path")"
+        actual="$( { printf 'blob %s\0' "$file_size"; cat "$path"; } | shasum -a 1 | awk '{print $1}')"
+        [[ "$actual" == "$expected" ]] || {
+          echo "Strands Decider Git blob mismatch: $root/$name" >&2
+          return 1
+        }
+      done < <(jq -r '.repos[] | .path as $root | .files[] | select(.sha256 == null) | [$root, .git_blob, .path] | @tsv' "$STRANDS_DECIDER_MANIFEST")
+      "$STRANDS_DECIDER_VENV/bin/python" -m strands_decider.hf_export verify "$STRANDS_DECIDER_DIR" || return 1
     fi
     if [[ "$requested_id" == muse-glimmer-30b ]]; then
       if ! "$MUSE_GLIMMER_HARNESS_VENV/bin/python" \
@@ -1396,7 +1514,7 @@ Commands:
   logs MODEL           Follow a model server log
   path MODEL           Print the canonical model path
   endpoint MODEL [--json]
-                       Print the OpenAI-compatible endpoint metadata
+                       Print service endpoint metadata
   omp MODEL [OMP_ARGS]
                        Run OMP with generated model metadata; owns server lifecycle when needed
   dsh MODEL [--prepare] [web|headless] [DSH_ARGS]
