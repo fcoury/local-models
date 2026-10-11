@@ -85,11 +85,17 @@ MiMo 128K profile, but the DeepSeek V4.1 profile remains exclusive.
 
 ## MiMo V2.6 Flash through Sushi
 
-The `mimo-v2.6-flash-sushi-2.3bpw` trial uses the pinned Sushi 1.1.1 binary
-under `~/models/runtime/sushi-v1.1.1` and the pinned MiMo pack under
+The `mimo-v2.6-flash-sushi-2.3bpw` profile uses the pinned Sushi 1.2.1 binary
+under `~/models/runtime/sushi-v1.2.1` and the pinned MiMo pack under
 `~/models/sushi/mimo-v2.6-flash-2.3bpw`. It serves a 128K context with a 32K
 default output limit on port 12345. MTP, 8-bit KV, and image input are enabled;
 Sushi does not use the pack's DFlash or audio-tokenizer assets.
+
+Sushi 1.2.1 is the qualified main runtime for Pi sessions; see the
+[continued-session comparison](benchmarks/sushi-pi-runtime-comparison.md).
+The retained 1.1.1 install is available under `~/models/runtime/sushi-v1.1.1`
+for rollback. Sushi 1.2.1 adds an SSD prefix cache (up to 20 GiB by default)
+alongside this profile's explicit 1 GiB RAM cache.
 
 ```fish
 modelctl doctor mimo-v2.6-flash-sushi-2.3bpw # verifies every weight hash; slow

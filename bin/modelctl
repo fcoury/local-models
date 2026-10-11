@@ -56,7 +56,7 @@ QWEN38_DS4_MODEL_DIR="$MODEL_HOME/gguf/qwen/qwen3.8-flash-next-ds4-iq2"
 QWEN38_DS4_MODEL="Qwen3.8-Flash-Next-IQ2XXSImatrix-MXFP4Down-MTP.gguf"
 QWEN38_DS4_PLE="Qwen3.8-Flash-Next-PLE-Q4_1.gguf"
 SUSHI_MIMO_MODEL_DIR="$MODEL_HOME/sushi/mimo-v2.6-flash-2.3bpw"
-SUSHI_MIMO_RUNTIME_ROOT="${SUSHI_MIMO_RUNTIME_ROOT:-$MODEL_HOME/runtime/sushi-v1.1.1/sushi-macos-arm64}"
+SUSHI_MIMO_RUNTIME_ROOT="${SUSHI_MIMO_RUNTIME_ROOT:-$MODEL_HOME/runtime/sushi-v1.2.1/sushi-macos-arm64}"
 SUSHI_MIMO_MANIFEST="$MODELCTL_ROOT/manifests/mimo-v2.6-flash-sushi-2.3bpw.json"
 STRANDS_DECIDER_DIR="$MODEL_HOME/llm/strands/strands-decider-2b-hobson-v21"
 STRANDS_DECIDER_BASE_DIR="$MODEL_HOME/llm/qwen/qwen3.5-2b-base"
@@ -1338,8 +1338,8 @@ doctor() {
     if [[ "$requested_id" == mimo-v2.6-flash-sushi-2.3bpw ]]; then
       local actual_sha256 expected_sha256 actual_blob expected_blob name file_size
       actual_sha256="$(shasum -a 256 "$SUSHI_MIMO_RUNTIME_ROOT/sushi" | awk '{print $1}')"
-      [[ "$actual_sha256" == 6ce1797b52822d5a5117d89ae69d13aee4c5c3093b2f9150b04c6da742b24fb0 ]] || {
-        echo "Sushi v1.1.1 executable SHA-256 mismatch: $actual_sha256" >&2
+      [[ "$actual_sha256" == 787ceffca0352ad38fb08fe1db43fa876d43019420c57bd8e12e3388f03695d2 ]] || {
+        echo "Sushi v1.2.1 executable SHA-256 mismatch: $actual_sha256" >&2
         return 1
       }
       while IFS=$'\t' read -r expected_sha256 name; do
