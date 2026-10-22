@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "rust-utf8",
+      "language": "rust",
+      "kind": "functional",
+      "allowed_files": [
+        "src/lib.rs"
+      ]
+    },
+    {
+      "id": "rust-tests",
+      "language": "rust",
+      "kind": "mutation",
+      "allowed_files": [
+        "tests/ports.rs"
+      ]
+    },
+    {
+      "id": "rust-migrate",
+      "language": "rust",
+      "kind": "functional",
+      "allowed_files": [
+        "src/lib.rs",
+        "src/service.rs"
+      ]
+    },
+    {
+      "id": "rust-explain",
+      "language": "rust",
+      "kind": "explanation",
+      "allowed_files": [
+        "answer.json",
+        "EXPLANATION.md"
+      ]
+    },
+    {
+      "id": "ts-money",
+      "language": "typescript",
+      "kind": "functional",
+      "allowed_files": [
+        "src/index.ts"
+      ]
+    },
+    {
+      "id": "ts-report",
+      "language": "typescript",
+      "kind": "functional",
+      "allowed_files": [
+        "src/index.ts"
+      ]
+    }
+  ]
+}

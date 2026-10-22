@@ -1,0 +1,1 @@
+{"accepted": [true, true, false, true, true], "retained": [10, 11], "eviction_age_at_least_window": true, "rejected_requests_recorded": false, "worst_case": "O(n)", "amortized": "O(1)"}

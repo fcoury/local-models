@@ -1,0 +1,1 @@
+Fix truncate_utf8 so it returns the longest prefix with at most max_bytes UTF-8 bytes. It must never panic, must not allocate, and must return a slice of the original input. Preserve its signature. Reproduce the failure and run cargo test. Change only src/lib.rs.
