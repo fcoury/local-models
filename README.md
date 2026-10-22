@@ -3,6 +3,10 @@
 Model weights live under `~/models`. This directory contains the catalog and
 the single launcher used to run local model servers.
 
+See the [evaluation findings index](benchmarks/README.md) for results,
+recommendations, and retained evidence. [AGENTS.md](AGENTS.md) explains how
+to maintain that record.
+
 ## Install the control plane
 
 After cloning this repository, recreate the command and compatibility links:
