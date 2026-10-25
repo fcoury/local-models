@@ -44,7 +44,10 @@ with tempfile.TemporaryDirectory() as temp:
     quiet = "service_loaded() { return 1; }; listening() { return 1; }; "
     args = run(quiet + f"run_model {model}").splitlines()
     assert "--ssd-streaming" in args and args[args.index("--backend") + 1] == "metal"
-    for flag, value in [("--ctx", "32768"), ("--tokens", "16384"), ("--port", "8009")]:
+    checkpoint = Path(temp) / "gguf/deepseek/deepseek-v4.1-flash-1017-q2" / (
+        "DeepSeek-V4.1-Flash-1017-IQ2_XXS-Q2_K-imatrix.gguf")
+    for flag, value in [("--model", str(checkpoint)), ("--ctx", "32768"),
+                        ("--tokens", "16384"), ("--port", "8009")]:
         assert args[args.index(flag) + 1] == value
     run(quiet + f"require_large_model_exclusive {model}")
     run('service_loaded() { [[ "$1" == glm-5.3-flash-q2 ]]; }; listening() { return 1; }; '

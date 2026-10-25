@@ -370,8 +370,9 @@ files, or credentials. In particular, `~/.qwen/.env` stays outside Git.
 
 ## DeepSeek V4.1 Flash Q2
 
-`deepseek-v4.1-flash-q2-32k` uses pinned DwarfStar Metal with SSD streaming on
-port 8009, 32,768 context tokens, and a 16,384-token default response budget.
+`deepseek-v4.1-flash-q2-32k` uses the 1017 checkpoint with pinned DwarfStar
+Metal and SSD streaming on port 8009, 32,768 context tokens, and a
+16,384-token default response budget.
 The server bounds generation by remaining context. The profile is text-only,
 with no vision or MTP, and runs exclusively with other managed model services.
 

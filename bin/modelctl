@@ -42,7 +42,7 @@ SIGNAL38_RUNTIME_PATCH="$MODELCTL_ROOT/compat/llama-signal38-macos.patch"
 DEEPSEEK41_DS4_ROOT="${DEEPSEEK41_DS4_ROOT:-$HOME/code/ds4-deepseek-v4.1-flash}"
 DEEPSEEK41_DS4_COMMIT="fc80bd695da76ee14bcb86820bf900a5cdfda806"
 DEEPSEEK41_MODEL_BYTES="365713686528"
-DEEPSEEK41_MODEL_SHA256="1ce6a8f8806205c13330d7ca287bd198331dc5ca35ccc5d8a9a92a188a6f6f42"
+DEEPSEEK41_MODEL_SHA256="5296e85ff64b42ecb62c8d0c0c54e1caa07e3df8e93112f2365ebbaed62ce93a"
 DEEPSEEK_DS4_ROOT="${DEEPSEEK_DS4_ROOT:-$HOME/code/ds4-deepseek-v4-vision}"
 DEEPSEEK_DS4_COMMIT="110afdd8886586f18fc9b28bc5533152dd10e728"
 DEEPSEEK_MODEL_BYTES="86720111776"
@@ -138,7 +138,7 @@ completion_models() {
 label() {
   case "$1" in
     qwen3.8-flash-next-iq2-mtp) echo "Qwen3.8 Flash Next IQ2 MTP 32K (DwarfStar Metal)" ;;
-    deepseek-v4.1-flash-q2-32k) echo "DeepSeek V4.1 Flash Q2 32K (DwarfStar SSD)" ;;
+    deepseek-v4.1-flash-q2-32k) echo "DeepSeek V4.1 Flash 1017 Q2 32K (DwarfStar SSD)" ;;
     qwen3.8-27b) echo "Qwen3.8 27B Q8 (llama.cpp)" ;;
     qwen3.8-27b-fixed-v22-4) echo "Qwen3.8 27B Q8 + Froggeric fixed template v22.4" ;;
     qwen3.8-flash-next-iq4-xs) echo "Qwen3.8 Flash Next UD-IQ4_XS 32K (pinned llama.cpp Metal)" ;;
@@ -587,7 +587,7 @@ model_path() {
     strands-decider-2b-v21) echo "$STRANDS_DECIDER_DIR" ;;
     mimo-v2.6-flash-sushi-2.3bpw) echo "$SUSHI_MIMO_MODEL_DIR" ;;
     qwen3.8-flash-next-iq2-mtp) echo "$QWEN38_DS4_MODEL_DIR/$QWEN38_DS4_MODEL" ;;
-    deepseek-v4.1-flash-q2-32k) echo "$MODEL_HOME/gguf/deepseek/deepseek-v4.1-flash-q2/DeepSeek-V4.1-Flash-Q2.gguf" ;;
+    deepseek-v4.1-flash-q2-32k) echo "$MODEL_HOME/gguf/deepseek/deepseek-v4.1-flash-1017-q2/DeepSeek-V4.1-Flash-1017-IQ2_XXS-Q2_K-imatrix.gguf" ;;
     qwen3.8-27b) echo "$MODEL_HOME/aliases/qwen3.8-27b" ;;
     qwen3.8-27b-fixed-v22-4) echo "$MODEL_HOME/aliases/qwen3.8-27b" ;;
     qwen3.8-flash-next-iq4-xs) echo "$QWEN38_FLASH_MODEL_DIR" ;;
