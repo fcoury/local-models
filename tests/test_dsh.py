@@ -15,7 +15,7 @@ spec.loader.exec_module(module)
 with tempfile.TemporaryDirectory() as tmp:
     home = Path(tmp)
     env = dict(os.environ, LOCAL_MODEL_STATE_HOME=tmp)
-    for model in ['deepseek-v4.1-flash-q2-32k', 'deepseek-v4.1-flash-maya-xs-64k', 'deepseek-v4-flash', 'qwen3.8-27b']:
+    for model in ['deepseek-v4.1-flash-q2-32k', 'deepseek-v4.1-flash-maya-xs-64k', 'qwen3.8-27b']:
         metadata = json.loads(subprocess.check_output([root / 'bin/modelctl', 'endpoint', model, '--json'], env=env))
         target = home / model
         for profile in ['web', 'headless']:

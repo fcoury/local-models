@@ -46,13 +46,6 @@ DEEPSEEK41_MODEL_SHA256="5296e85ff64b42ecb62c8d0c0c54e1caa07e3df8e93112f2365ebba
 MAYA_DS4_ROOT="${MAYA_DS4_ROOT:-$HOME/code/ds4-maya-xs}"
 MAYA_DS4_COMMIT="0dff39f91721bcf3472813c6d2bebf9353df2a1a"
 MAYA_MODEL_SHA256="f414995b3797f77009634fac995f50834e70393771f9423fca984c892503b42a"
-DEEPSEEK_DS4_ROOT="${DEEPSEEK_DS4_ROOT:-$HOME/code/ds4-deepseek-v4-vision}"
-DEEPSEEK_DS4_COMMIT="110afdd8886586f18fc9b28bc5533152dd10e728"
-DEEPSEEK_MODEL_BYTES="86720111776"
-DEEPSEEK_MODEL_SHA256="8f2d42c0071ccf8a98f391cc2b835fd123f12330690b3059dbb7707920e5ad9e"
-DEEPSEEK_VISION_PATH="$MODEL_HOME/gguf/deepseek/deepseek-v4-flash-vision/DeepSeek-V4-Flash-Vision-Encoder.gguf"
-DEEPSEEK_VISION_BYTES="932857760"
-DEEPSEEK_VISION_SHA256="00cd4d81a435364967400a95c42703343e11da6b6f18c5143fe76e1d94d5035f"
 QWEN38_DS4_ROOT="${QWEN38_DS4_ROOT:-$HOME/code/ds4-qwen3.8-flash-next}"
 QWEN38_DS4_COMMIT="ffd85d426313ace6dae805e9f2fb4424d5b427fd"
 QWEN38_DS4_MODEL_DIR="$MODEL_HOME/gguf/qwen/qwen3.8-flash-next-ds4-iq2"
@@ -94,7 +87,6 @@ qwen3.8-27b-mlxfast-mtp-server
 qwen3.6-35b-a3b
 deepseek-v4.1-flash-q2-32k
 deepseek-v4.1-flash-maya-xs-64k
-deepseek-v4-flash
 glm-5.3-flash-q2
 glm-5.3-flash-q2-131k
 minimax-h3-standard
@@ -154,7 +146,6 @@ label() {
     qwen3.8-27b-mlxfast-mtp) echo "Qwen3.8 27B MLX.fast native MTP harness" ;;
     qwen3.8-27b-mlxfast-mtp-server) echo "Qwen3.8 27B MLX.fast native MTP OpenAI server" ;;
     qwen3.6-35b-a3b) echo "Qwen3.6 35B A3B OptiQ 4-bit (MLX)" ;;
-    deepseek-v4-flash) echo "DeepSeek V4 Flash Vision-Exp IQ2XXS (DS4)" ;;
     glm-5.3-flash-q2) echo "GLM 5.3 Flash Q2 65K (DS4)" ;;
     glm-5.3-flash-q2-131k) echo "GLM 5.3 Flash Q2 131K (DS4)" ;;
     minimax-h3-standard) echo "MiniMax H3 standard 4-bit (MLX)" ;;
@@ -176,7 +167,7 @@ kind() {
   case "$1" in
     deepseek-v4.1-flash-maya-xs-64k) echo service ;;
     deepseek-v4.1-flash-q2-32k) echo service ;;
-    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq4-xs|qwen3.8-flash-next-iq2-mtp|mimo-v2.6-flash-sushi-2.3bpw|strands-decider-2b-v21|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|glm-5.3-flash-q2|glm-5.3-flash-q2-131k|minimax-h3-standard|minimax-h3-heretic|muse-glimmer-30b-server)
+    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq4-xs|qwen3.8-flash-next-iq2-mtp|mimo-v2.6-flash-sushi-2.3bpw|strands-decider-2b-v21|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|glm-5.3-flash-q2|glm-5.3-flash-q2-131k|minimax-h3-standard|minimax-h3-heretic|muse-glimmer-30b-server)
       echo service
       ;;
     muse-glimmer-30b|qwen3.8-27b-mlxfast-mtp)
@@ -202,7 +193,6 @@ port() {
     signal-3.8-flash-next-iq4-xs-mtp) echo 8087 ;;
     qwen3.8-27b-mlxfast-mtp-server) echo 8083 ;;
     qwen3.6-35b-a3b) echo 8081 ;;
-    deepseek-v4-flash) echo 8000 ;;
     glm-5.3-flash-q2) echo 8004 ;;
     glm-5.3-flash-q2-131k) echo 8007 ;;
     minimax-h3-standard) echo 11234 ;;
@@ -215,7 +205,6 @@ port() {
 api_model() {
   case "$1" in
     deepseek-v4.1-flash-maya-xs-64k) echo deepseek-v4.1-flash ;;
-    deepseek-v4-flash) echo deepseek-v4-flash ;;
     qwen3.8-flash-next-iq2-mtp) echo qwen3.8-flash-next ;;
     mimo-v2.6-flash-sushi-2.3bpw) echo mimo-v2.6-flash-2.3bpw ;;
     strands-decider-2b-v21) echo strands-decider-2b-hobson-v21 ;;
@@ -242,7 +231,6 @@ context_size() {
     strands-decider-2b-v21) echo 4096 ;;
     signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp) echo 65536 ;;
     qwen3.8-27b-mlxfast-mtp-server) echo 40960 ;;
-    deepseek-v4-flash) echo 250000 ;;
     glm-5.3-flash-q2) echo 65536 ;;
     glm-5.3-flash-q2-131k) echo 131072 ;;
     *) return 1 ;;
@@ -257,7 +245,7 @@ output_size() {
     qwen3.8-flash-next-iq4-xs|qwen3.8-flash-next-iq2-mtp|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp)
       echo 16384
       ;;
-    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|glm-5.3-flash-q2|glm-5.3-flash-q2-131k|muse-glimmer-30b-server)
+    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|glm-5.3-flash-q2|glm-5.3-flash-q2-131k|muse-glimmer-30b-server)
       echo 32768
       ;;
     *) return 1 ;;
@@ -332,7 +320,6 @@ omp_family() {
   case "$1" in
     mimo-v2.6-flash-sushi-2.3bpw) echo sushi ;;
     deepseek-v4.1-flash-q2-32k|deepseek-v4.1-flash-maya-xs-64k) echo deepseek41-ds4 ;;
-    deepseek-v4-flash) echo deepseek-ds4 ;;
     glm-5.3-flash-q2|glm-5.3-flash-q2-131k) echo glm-ds4 ;;
     qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq4-xs|qwen3.8-flash-next-iq2-mtp|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp|qwen3.8-27b-mlxfast-mtp-server) echo qwen ;;
     *) return 1 ;;
@@ -366,10 +353,9 @@ write_omp_models() {
   mkdir -p "$OMP_AGENT_DIR"
   temporary="$(mktemp "$OMP_AGENT_DIR/models.yml.XXXXXX")"
   case "$family" in
-    deepseek-ds4|deepseek41-ds4)
+    deepseek41-ds4)
       # Use an explicit effort so OMP sends none during tool loops and compaction.
       jq -n \
-        --arg family "$family" \
         --arg provider "$provider" \
         --arg base_url "$base_url" \
         --arg model "$provider_model" \
@@ -384,8 +370,8 @@ write_omp_models() {
             id: $model,
             name: $name,
             reasoning: true,
-            thinking: {mode: "effort", efforts: (if $family == "deepseek41-ds4" then ["minimal", "high"] else ["high"] end), defaultLevel: "high", requiresEffort: ($family != "deepseek41-ds4")},
-            input: (if $family == "deepseek41-ds4" then ["text"] else ["text", "image"] end),
+            thinking: {mode: "effort", efforts: ["minimal", "high"], defaultLevel: "high", requiresEffort: false},
+            input: ["text"],
             imageInputDecoder: "stb",
             tokenizer: "deepseek-v3",
             supportsTools: true,
@@ -396,7 +382,7 @@ write_omp_models() {
               supportsStore: false,
               supportsDeveloperRole: false,
               supportsReasoningEffort: true,
-              reasoningEffortMap: (if $family == "deepseek41-ds4" then {minimal: "none"} else {} end),
+              reasoningEffortMap: {minimal: "none"},
               supportsToolChoice: false,
               supportsForcedToolChoice: false
             }
@@ -606,7 +592,6 @@ model_path() {
     qwen3.8-27b-mlxfast-mtp) echo "$MODEL_HOME/mlx/qwen/qwen3.8-27b-mlxfast-mtp" ;;
     qwen3.8-27b-mlxfast-mtp-server) echo "$MODEL_HOME/mlx/qwen/qwen3.8-27b-mlxfast-mtp" ;;
     qwen3.6-35b-a3b) echo "$MODEL_HOME/aliases/qwen3.6-35b-a3b-mlx" ;;
-    deepseek-v4-flash) echo "$MODEL_HOME/aliases/deepseek-v4-flash-current.gguf" ;;
     glm-5.3-flash-q2|glm-5.3-flash-q2-131k) echo "$MODEL_HOME/gguf/glm-5.3-flash-antirez/GLM-5.3-Flash-Q2.gguf" ;;
     minimax-h3-standard) echo "$MODEL_HOME/mlx/minimax-h3/standard-4bit" ;;
     minimax-h3-heretic) echo "$MODEL_HOME/mlx/minimax-h3/heretic-4bit" ;;
@@ -734,16 +719,6 @@ ready() {
         { [[ "$id" != signal-3.8-flash-next-iq4-xs-mtp ]] ||
           [[ -f "$SIGNAL38_MODEL_DIR/$SIGNAL38_MTP" &&
             "$(/usr/bin/stat -f '%z' "$SIGNAL38_MODEL_DIR/$SIGNAL38_MTP")" == "$SIGNAL38_MTP_BYTES" ]]; }
-      ;;
-    deepseek-v4-flash)
-      [[ -f "$(model_path "$id")" &&
-        "$(/usr/bin/stat -L -f '%z' "$(model_path "$id")")" == "$DEEPSEEK_MODEL_BYTES" &&
-        -f "$DEEPSEEK_VISION_PATH" &&
-        "$(/usr/bin/stat -f '%z' "$DEEPSEEK_VISION_PATH")" == "$DEEPSEEK_VISION_BYTES" &&
-        -x "$DEEPSEEK_DS4_ROOT/ds4-server" &&
-        "$(git -C "$DEEPSEEK_DS4_ROOT" rev-parse HEAD 2>/dev/null)" == "$DEEPSEEK_DS4_COMMIT" ]] &&
-        git -C "$DEEPSEEK_DS4_ROOT" diff --quiet HEAD -- &&
-        make -q -C "$DEEPSEEK_DS4_ROOT" ds4-server
       ;;
     glm-5.3-flash-q2|glm-5.3-flash-q2-131k)
       [[ -f "$(model_path "$id")" &&
@@ -1105,20 +1080,6 @@ run_model() {
     qwen3.8-27b-mlxfast-mtp-server)
       exec "$MODEL_HOME/scripts/qwen38-mlxfast-server.sh" "$@"
       ;;
-    deepseek-v4-flash)
-      local ds4_kv_dir="${TMPDIR:-/tmp}/local-models-ds4-kv"
-      mkdir -p "$ds4_kv_dir"
-      cd "$DEEPSEEK_DS4_ROOT"
-      exec "$DEEPSEEK_DS4_ROOT/ds4-server" \
-        --backend metal \
-        --model "$(model_path "$id")" \
-        --vision "$DEEPSEEK_VISION_PATH" \
-        --ctx 250000 \
-        --host 127.0.0.1 \
-        --port 8000 \
-        --kv-disk-dir "$ds4_kv_dir" \
-        --kv-disk-space-mb 8192
-      ;;
     glm-5.3-flash-q2|glm-5.3-flash-q2-131k)
       require_glm_variant_peer_stopped "$id"
       local glm53_kv_dir="$STATE_HOME/kv/$id"
@@ -1280,7 +1241,6 @@ start_model() {
     -- /usr/bin/env \
       "MODEL_HOME=$MODEL_HOME" \
       "LOCAL_MODEL_STATE_HOME=$STATE_HOME" \
-      "DEEPSEEK_DS4_ROOT=$DEEPSEEK_DS4_ROOT" \
       "DEEPSEEK41_DS4_ROOT=$DEEPSEEK41_DS4_ROOT" \
       "MAYA_DS4_ROOT=$MAYA_DS4_ROOT" \
       "GLM53_DS4_ROOT=$GLM53_DS4_ROOT" \
@@ -1450,20 +1410,6 @@ doctor() {
       actual_sha256="$(openssl dgst -sha256 "$(model_path "$requested_id")" | awk '{print $NF}')"
       if [[ "$actual_sha256" != "$MAYA_MODEL_SHA256" ]]; then
         echo "Maya-XS model SHA-256 mismatch: $actual_sha256" >&2
-        return 1
-      fi
-    fi
-    if [[ "$requested_id" == deepseek-v4-flash ]]; then
-      local deepseek_model_sha256
-      local deepseek_vision_sha256
-      deepseek_model_sha256="$(shasum -a 256 "$(model_path "$requested_id")" | awk '{ print $1 }')"
-      deepseek_vision_sha256="$(shasum -a 256 "$DEEPSEEK_VISION_PATH" | awk '{ print $1 }')"
-      if [[ "$deepseek_model_sha256" != "$DEEPSEEK_MODEL_SHA256" ]]; then
-        echo "DeepSeek Vision-Exp model SHA-256 mismatch: $deepseek_model_sha256" >&2
-        return 1
-      fi
-      if [[ "$deepseek_vision_sha256" != "$DEEPSEEK_VISION_SHA256" ]]; then
-        echo "DeepSeek Vision-Exp encoder SHA-256 mismatch: $deepseek_vision_sha256" >&2
         return 1
       fi
     fi

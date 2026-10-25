@@ -50,7 +50,6 @@ Available services:
 - `qwen3.8-27b-mlxfast-mtp-server` on port 8083; native MLX.fast MTP for
   OpenAI-compatible clients and `modelbench`.
 - `qwen3.6-35b-a3b` on port 8081.
-- `deepseek-v4-flash` on port 8000.
 - `deepseek-v4.1-flash-maya-xs-64k` on port 8011; text/tools through
   DwarfStar Metal, with sufficient desktop memory headroom.
 - `glm-5.3-flash-q2` on port 8004; text-only DS4 baseline for controlled
@@ -59,6 +58,10 @@ Available services:
 - `minimax-h3-heretic` on port 11235.
 - `strands-decider-2b-v21` on port 8010; MLX typed decisions at
   `/v1/systemone`.
+
+The old `deepseek-v4-flash` Vision-Exp weights and encoder were
+[removed on 2026-10-25](benchmarks/deepseek-v4-retirement.md). Its catalog
+entry and launcher profile were retired; recovery pins remain in that report.
 
 Run `modelctl doctor` after moving or updating models. The complete inventory,
 including non-server assets and application-managed models, is in

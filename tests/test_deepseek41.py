@@ -23,13 +23,14 @@ with tempfile.TemporaryDirectory() as temp:
     assert endpoint["api_model"] == "deepseek-v4.1-flash"
     assert (endpoint["context"], endpoint["output"]) == (32768, 16384)
     assert endpoint["base_url"] == "http://127.0.0.1:8009/v1"
-    for target in [model, "deepseek-v4-flash"]:
-        run(f"write_omp_models {target}")
-        cfg = next(iter(json.loads((Path(temp) / "models.yml").read_text())["providers"].values()))
-        assert cfg["api"] == "openai-responses"
-        assert cfg["models"][0]["input"] == (["text"] if target == model else ["text", "image"])
-        assert cfg["models"][0]["thinking"]["requiresEffort"] == (target != model)
-        assert cfg["models"][0]["compat"]["reasoningEffortMap"] == ({"minimal": "none"} if target == model else {})
+    assert "deepseek-v4-flash" not in run("models").splitlines()
+    run("known_model deepseek-v4-flash", ok=False)
+    run(f"write_omp_models {model}")
+    cfg = next(iter(json.loads((Path(temp) / "models.yml").read_text())["providers"].values()))
+    assert cfg["api"] == "openai-responses"
+    assert cfg["models"][0]["input"] == ["text"]
+    assert cfg["models"][0]["thinking"]["requiresEffort"] is False
+    assert cfg["models"][0]["compat"]["reasoningEffortMap"] == {"minimal": "none"}
     mocks = 'healthy() { return 0; }; omp() { printf "%s\\n" "$@"; }; '
     for flags, expected in [("--thinking off", ["--thinking", "minimal"]),
                             ("--thinking=off", ["--thinking=minimal"]),
