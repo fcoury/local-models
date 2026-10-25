@@ -51,6 +51,8 @@ Available services:
   OpenAI-compatible clients and `modelbench`.
 - `qwen3.6-35b-a3b` on port 8081.
 - `deepseek-v4-flash` on port 8000.
+- `deepseek-v4.1-flash-maya-xs-64k` on port 8011; text/tools through
+  DwarfStar Metal, with sufficient desktop memory headroom.
 - `glm-5.3-flash-q2` on port 8004; text-only DS4 baseline for controlled
   Vibebench evaluations.
 - `minimax-h3-standard` on port 11234.
@@ -291,7 +293,7 @@ endpoint and launches OMP with the matching DS4 or Qwen compatibility preset:
 
 ```bash
 modelctl omp glm-5.3-flash-q2-131k
-modelctl omp deepseek-v4-flash --thinking high
+modelctl omp deepseek-v4.1-flash-maya-xs-64k --thinking high
 modelctl omp qwen3.8-27b --thinking medium
 ```
 
@@ -392,6 +394,58 @@ without an explicit effort line, and a numeric string such as `"25"` selects
 that level directly.
 `doctor` verifies the entire 340.6 GiB artifact and can take several minutes.
 Run `python3 tests/test_deepseek41.py` for the profile's local regression check.
+
+## DeepSeek V4.1 Flash Maya-XS Abliterated
+
+`deepseek-v4.1-flash-maya-xs-64k` passed artifact, loading, API smoke and bounded
+DSH editing/test checks on the 128 GB M5 Max. The initial desktop workload
+caused memory-pressure warnings; after closing unused apps and development
+processes, the resident model and DSH probe ran at normal memory pressure. It uses a
+separate `audreyt/ds4` checkout at
+`~/code/ds4-maya-xs`, pinned to `0dff39f91721bcf3472813c6d2bebf9353df2a1a`.
+The profile serves text/tools on localhost port 8011 with a 65,536-token
+context and a 16,384-token default output ceiling. It requests 512-row prefill
+chunks, but the pinned V4.1 engine allocated a 2048-row prefill graph.
+MTP and vision are disabled. It runs exclusively with other managed services.
+
+The [model author](https://huggingface.co/audreyt/DeepSeek-V4.1-Flash-Abliterated-GGUF)
+reports about 107.35 GiB of resident weights. Expert SSD streaming is disabled;
+Engram remains disk-backed. The source revision and expected checksum are in
+`models.toml`. Preparation and limitations are recorded in
+[the setup report](benchmarks/deepseek-maya-xs-setup.md).
+
+For a fresh download, wait for aria2's download/checksum operation to succeed
+before loading. The profile refuses readiness while its `.aria2` control file exists;
+do not delete that file to bypass the check. `doctor` independently rehashes
+the entire GGUF and can take several minutes. Avoid running it alongside the
+downloader's verification. The Metal wired ceiling must be raised before
+loading; this command changes it for the current boot only:
+
+```bash
+# After download verification has succeeded:
+modelctl doctor deepseek-v4.1-flash-maya-xs-64k
+sudo sysctl iogpu.wired_limit_mb=114688
+modelctl start deepseek-v4.1-flash-maya-xs-64k
+python3 tests/smoke_maya_xs.py --live
+# From the project you want to work on:
+modelctl dsh deepseek-v4.1-flash-maya-xs-64k
+modelctl stop deepseek-v4.1-flash-maya-xs-64k
+# After stopping, restore the automatic ceiling if desired:
+sudo sysctl iogpu.wired_limit_mb=0
+```
+
+Check memory pressure and swap during the first load before increasing context.
+The API probe checks completion, automatic tool selection/return, and streaming;
+DSH file editing and test execution passed a small isolated task; long-session
+compaction remains untested.
+Offline checks require no model loading:
+
+```bash
+python3 tests/test_maya_xs.py
+python3 tests/test_dsh.py
+modelctl dsh deepseek-v4.1-flash-maya-xs-64k --prepare web
+modelctl dsh deepseek-v4.1-flash-maya-xs-64k --prepare headless
+```
 
 ## DeepSeek Harness (PTC)
 

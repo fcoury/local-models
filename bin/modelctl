@@ -43,6 +43,9 @@ DEEPSEEK41_DS4_ROOT="${DEEPSEEK41_DS4_ROOT:-$HOME/code/ds4-deepseek-v4.1-flash}"
 DEEPSEEK41_DS4_COMMIT="fc80bd695da76ee14bcb86820bf900a5cdfda806"
 DEEPSEEK41_MODEL_BYTES="365713686528"
 DEEPSEEK41_MODEL_SHA256="5296e85ff64b42ecb62c8d0c0c54e1caa07e3df8e93112f2365ebbaed62ce93a"
+MAYA_DS4_ROOT="${MAYA_DS4_ROOT:-$HOME/code/ds4-maya-xs}"
+MAYA_DS4_COMMIT="0dff39f91721bcf3472813c6d2bebf9353df2a1a"
+MAYA_MODEL_SHA256="f414995b3797f77009634fac995f50834e70393771f9423fca984c892503b42a"
 DEEPSEEK_DS4_ROOT="${DEEPSEEK_DS4_ROOT:-$HOME/code/ds4-deepseek-v4-vision}"
 DEEPSEEK_DS4_COMMIT="110afdd8886586f18fc9b28bc5533152dd10e728"
 DEEPSEEK_MODEL_BYTES="86720111776"
@@ -90,6 +93,7 @@ qwen3.8-27b-mlxfast-mtp
 qwen3.8-27b-mlxfast-mtp-server
 qwen3.6-35b-a3b
 deepseek-v4.1-flash-q2-32k
+deepseek-v4.1-flash-maya-xs-64k
 deepseek-v4-flash
 glm-5.3-flash-q2
 glm-5.3-flash-q2-131k
@@ -137,6 +141,7 @@ completion_models() {
 
 label() {
   case "$1" in
+    deepseek-v4.1-flash-maya-xs-64k) echo "DeepSeek V4.1 Flash 1017 Maya-XS Abliterated 64K (DwarfStar Metal)" ;;
     qwen3.8-flash-next-iq2-mtp) echo "Qwen3.8 Flash Next IQ2 MTP 32K (DwarfStar Metal)" ;;
     deepseek-v4.1-flash-q2-32k) echo "DeepSeek V4.1 Flash 1017 Q2 32K (DwarfStar SSD)" ;;
     qwen3.8-27b) echo "Qwen3.8 27B Q8 (llama.cpp)" ;;
@@ -169,6 +174,7 @@ label() {
 
 kind() {
   case "$1" in
+    deepseek-v4.1-flash-maya-xs-64k) echo service ;;
     deepseek-v4.1-flash-q2-32k) echo service ;;
     qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq4-xs|qwen3.8-flash-next-iq2-mtp|mimo-v2.6-flash-sushi-2.3bpw|strands-decider-2b-v21|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|deepseek-v4-flash|glm-5.3-flash-q2|glm-5.3-flash-q2-131k|minimax-h3-standard|minimax-h3-heretic|muse-glimmer-30b-server)
       echo service
@@ -184,6 +190,7 @@ kind() {
 
 port() {
   case "$1" in
+    deepseek-v4.1-flash-maya-xs-64k) echo 8011 ;;
     qwen3.8-flash-next-iq2-mtp) echo 8008 ;;
     mimo-v2.6-flash-sushi-2.3bpw) echo 12345 ;;
     strands-decider-2b-v21) echo 8010 ;;
@@ -207,6 +214,7 @@ port() {
 
 api_model() {
   case "$1" in
+    deepseek-v4.1-flash-maya-xs-64k) echo deepseek-v4.1-flash ;;
     deepseek-v4-flash) echo deepseek-v4-flash ;;
     qwen3.8-flash-next-iq2-mtp) echo qwen3.8-flash-next ;;
     mimo-v2.6-flash-sushi-2.3bpw) echo mimo-v2.6-flash-2.3bpw ;;
@@ -226,6 +234,7 @@ api_model() {
 
 context_size() {
   case "$1" in
+    deepseek-v4.1-flash-maya-xs-64k) echo 65536 ;;
     deepseek-v4.1-flash-q2-32k) echo 32768 ;;
     qwen3.8-27b|qwen3.8-27b-fixed-v22-4|muse-glimmer-30b-server) echo 131072 ;;
     qwen3.8-flash-next-iq4-xs|qwen3.8-flash-next-iq2-mtp) echo 32768 ;;
@@ -242,6 +251,7 @@ context_size() {
 
 output_size() {
   case "$1" in
+    deepseek-v4.1-flash-maya-xs-64k) echo 16384 ;;
     deepseek-v4.1-flash-q2-32k) echo 16384 ;;
     mimo-v2.6-flash-sushi-2.3bpw) echo 32768 ;;
     qwen3.8-flash-next-iq4-xs|qwen3.8-flash-next-iq2-mtp|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp)
@@ -321,7 +331,7 @@ endpoint() {
 omp_family() {
   case "$1" in
     mimo-v2.6-flash-sushi-2.3bpw) echo sushi ;;
-    deepseek-v4.1-flash-q2-32k) echo deepseek41-ds4 ;;
+    deepseek-v4.1-flash-q2-32k|deepseek-v4.1-flash-maya-xs-64k) echo deepseek41-ds4 ;;
     deepseek-v4-flash) echo deepseek-ds4 ;;
     glm-5.3-flash-q2|glm-5.3-flash-q2-131k) echo glm-ds4 ;;
     qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq4-xs|qwen3.8-flash-next-iq2-mtp|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp|qwen3.8-27b-mlxfast-mtp-server) echo qwen ;;
@@ -481,7 +491,7 @@ run_omp() {
   local selector
   local owned_server=false
 
-  if [[ "$id" == deepseek-v4.1-flash-q2-32k && $# -gt 0 ]]; then
+  if [[ "$(omp_family "$id")" == deepseek41-ds4 && $# -gt 0 ]]; then
     # OMP's literal off can omit effort on side requests. minimal maps to native none.
     local args=("$@") i
     for ((i=0; i<${#args[@]}; i++)); do
@@ -495,7 +505,7 @@ run_omp() {
     set -- "${args[@]}"
   fi
 
-  if [[ "$(omp_family "$id")" == glm-ds4 || "$id" == deepseek-v4.1-flash-q2-32k ]]; then
+  if [[ "$(omp_family "$id")" == glm-ds4 || "$(omp_family "$id")" == deepseek41-ds4 ]]; then
     export PI_EDIT_VARIANT="${PI_EDIT_VARIANT:-replace}"
   fi
 
@@ -584,6 +594,7 @@ run_dsh() {
 
 model_path() {
   case "$1" in
+    deepseek-v4.1-flash-maya-xs-64k) echo "$MODEL_HOME/gguf/deepseek/deepseek-v4.1-flash-1017-maya-xs-abliterated-7832036c/DeepSeek-V4.1-Flash-1017-Maya-XS-Abliterated.gguf" ;;
     strands-decider-2b-v21) echo "$STRANDS_DECIDER_DIR" ;;
     mimo-v2.6-flash-sushi-2.3bpw) echo "$SUSHI_MIMO_MODEL_DIR" ;;
     qwen3.8-flash-next-iq2-mtp) echo "$QWEN38_DS4_MODEL_DIR/$QWEN38_DS4_MODEL" ;;
@@ -643,6 +654,15 @@ strands_decider_sizes_match() {
 ready() {
   local id="$1"
   case "$id" in
+    deepseek-v4.1-flash-maya-xs-64k)
+      # aria2 retains its control file through download/checksum verification.
+      [[ -f "$(model_path "$id")" && ! -e "$(model_path "$id").aria2" &&
+        "$(/usr/bin/stat -L -f '%z' "$(model_path "$id")")" == "$DEEPSEEK41_MODEL_BYTES" &&
+        -x "$MAYA_DS4_ROOT/ds4-server" &&
+        "$(git -C "$MAYA_DS4_ROOT" rev-parse HEAD 2>/dev/null)" == "$MAYA_DS4_COMMIT" ]] &&
+        git -C "$MAYA_DS4_ROOT" diff --quiet HEAD -- &&
+        make -q -C "$MAYA_DS4_ROOT" ds4-server
+      ;;
     strands-decider-2b-v21)
       [[ -x "$STRANDS_DECIDER_VENV/bin/strands-decider" &&
         -f "$STRANDS_DECIDER_DIR/strands_decider_config.json" &&
@@ -880,7 +900,7 @@ require_glm_variant_peer_stopped() {
 # coexist with MiMo's 128K profile, but remains exclusive with DeepSeek V4.1.
 require_large_model_exclusive() {
   local id="$1" peer
-  if [[ "$id" == deepseek-v4.1-flash-q2-32k || "$id" == mimo-v2.6-flash-sushi-2.3bpw ]]; then
+  if [[ "$id" == deepseek-v4.1-flash-q2-32k || "$id" == deepseek-v4.1-flash-maya-xs-64k || "$id" == mimo-v2.6-flash-sushi-2.3bpw ]]; then
     while IFS= read -r peer; do
       [[ "$peer" != "$id" && "$(kind "$peer")" == service ]] || continue
       if [[ "$id" == mimo-v2.6-flash-sushi-2.3bpw && "$peer" == strands-decider-2b-v21 ]]; then
@@ -892,11 +912,14 @@ require_large_model_exclusive() {
       fi
     done < <(models)
   elif [[ "$id" == strands-decider-2b-v21 ]]; then
-    if service_loaded deepseek-v4.1-flash-q2-32k || listening deepseek-v4.1-flash-q2-32k; then
-      echo "Stop deepseek-v4.1-flash-q2-32k before starting $id." >&2
-      return 1
-    fi
+    for peer in deepseek-v4.1-flash-q2-32k deepseek-v4.1-flash-maya-xs-64k; do
+      if service_loaded "$peer" || listening "$peer"; then
+        echo "Stop $peer before starting $id." >&2
+        return 1
+      fi
+    done
   elif service_loaded deepseek-v4.1-flash-q2-32k || listening deepseek-v4.1-flash-q2-32k ||
+       service_loaded deepseek-v4.1-flash-maya-xs-64k || listening deepseek-v4.1-flash-maya-xs-64k ||
        service_loaded mimo-v2.6-flash-sushi-2.3bpw || listening mimo-v2.6-flash-sushi-2.3bpw; then
     echo "Stop the active large-model profile before starting $id." >&2
     return 1
@@ -908,6 +931,17 @@ run_model() {
   shift
   require_large_model_exclusive "$id"
   case "$id" in
+    deepseek-v4.1-flash-maya-xs-64k)
+      local kv_dir="$STATE_HOME/kv/$id"
+      mkdir -p "$kv_dir"
+      cd "$MAYA_DS4_ROOT"
+      # Maya fits resident on Metal; only Engram remains disk-backed.
+      exec "$MAYA_DS4_ROOT/ds4-server" \
+        --backend metal --model "$(model_path "$id")" \
+        --ctx "$(context_size "$id")" --tokens "$(output_size "$id")" \
+        --prefill-chunk 512 --host 127.0.0.1 --port "$(port "$id")" \
+        --kv-disk-dir "$kv_dir" --kv-disk-space-mb 8192 "$@"
+      ;;
     strands-decider-2b-v21)
       exec /usr/bin/env \
         "HF_HOME=$MODEL_HOME/cache/huggingface" "HF_HUB_OFFLINE=1" \
@@ -1182,6 +1216,7 @@ status_one() {
 
 startup_timeout() {
   case "$1" in
+    deepseek-v4.1-flash-maya-xs-64k) echo 300 ;;
     strands-decider-2b-v21) echo 180 ;;
     mimo-v2.6-flash-sushi-2.3bpw) echo 900 ;;
     qwen3.8-flash-next-iq2-mtp) echo 180 ;;
@@ -1247,6 +1282,7 @@ start_model() {
       "LOCAL_MODEL_STATE_HOME=$STATE_HOME" \
       "DEEPSEEK_DS4_ROOT=$DEEPSEEK_DS4_ROOT" \
       "DEEPSEEK41_DS4_ROOT=$DEEPSEEK41_DS4_ROOT" \
+      "MAYA_DS4_ROOT=$MAYA_DS4_ROOT" \
       "GLM53_DS4_ROOT=$GLM53_DS4_ROOT" \
       "QWEN38_FLASH_RUNTIME_ROOT=$QWEN38_FLASH_RUNTIME_ROOT" \
       "SIGNAL38_RUNTIME_ROOT=$SIGNAL38_RUNTIME_ROOT" \
@@ -1406,6 +1442,14 @@ doctor() {
       actual_sha256="$(openssl dgst -sha256 "$(model_path "$requested_id")" | awk '{print $NF}')"
       if [[ "$actual_sha256" != "$DEEPSEEK41_MODEL_SHA256" ]]; then
         echo "DeepSeek V4.1 model SHA-256 mismatch: $actual_sha256" >&2
+        return 1
+      fi
+    fi
+    if [[ "$requested_id" == deepseek-v4.1-flash-maya-xs-64k ]]; then
+      local actual_sha256
+      actual_sha256="$(openssl dgst -sha256 "$(model_path "$requested_id")" | awk '{print $NF}')"
+      if [[ "$actual_sha256" != "$MAYA_MODEL_SHA256" ]]; then
+        echo "Maya-XS model SHA-256 mismatch: $actual_sha256" >&2
         return 1
       fi
     fi

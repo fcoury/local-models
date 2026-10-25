@@ -403,3 +403,26 @@ vision = false
 mtp = false
 consumer = "OMP, Vibebench, modelbench, and OpenAI-compatible clients"
 notes = "Text-only 32K profile; mandatory SSD streaming, automatic expert cache, disk-only Engram."
+
+[[models]]
+id = "deepseek-v4.1-flash-maya-xs-64k"
+name = "DeepSeek V4.1 Flash 1017 Maya-XS Abliterated 64K"
+format = "GGUF"
+runner = "DwarfStar (resident Metal, disk-only Engram)"
+path = "gguf/deepseek/deepseek-v4.1-flash-1017-maya-xs-abliterated-7832036c/DeepSeek-V4.1-Flash-1017-Maya-XS-Abliterated.gguf"
+port = 8011
+context = 65536
+output = 16384
+status = "checksum, API and bounded DSH acceptance passed"
+api_model = "deepseek-v4.1-flash"
+bytes = 365713686528
+sha256 = "f414995b3797f77009634fac995f50834e70393771f9423fca984c892503b42a"
+source = "audreyt/DeepSeek-V4.1-Flash-Abliterated-GGUF"
+source_revision = "7832036cb557c6ccdacdff77ef4e6ea283e35f89"
+runtime_path = "~/code/ds4-maya-xs"
+runtime_commit = "0dff39f91721bcf3472813c6d2bebf9353df2a1a"
+quantization = "Maya-XS IQ1_S routed experts, Q8 dense; pqhaz Heretic attention edit"
+vision = false
+mtp = false
+consumer = "DSH, OMP, and OpenAI-compatible clients"
+notes = "Checksum, load, API smoke and bounded DSH editing/tests passed. Resident mode needs desktop memory headroom: initial app workload caused warnings; pressure stayed normal after authorized cleanup. Requested 512-row prefill, but V4.1 allocated a 2048-row graph. Requires 112 GiB Metal wired ceiling and exclusive large-model use. Long-session compaction untested."

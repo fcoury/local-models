@@ -8,6 +8,7 @@ tasks and settings, so this is not a combined leaderboard.
 
 | Date | Experiment | Finding and practical implication | Status / evidence |
 |---|---|---|---|
+| 2026-10-24 | DeepSeek 1017 Maya-XS Abliterated setup | Checksum, resident load, API completion/tools/streaming and bounded DSH editing/tests passed. Initial memory warnings resolved after authorized desktop cleanup; long-session compaction untested. | Integration smoke, not a quality benchmark; [setup and live outcome](deepseek-maya-xs-setup.md). |
 | 2026-10-23 | DeepSeek V4.1 default switched to 1017 | Full checksum and live `modelctl` response passed. Original checkpoint removed to reclaim 340.6 GiB; this is integration validation, not a new quality comparison. | [Migration and evidence](deepseek-1017-default.md). |
 | 2026-10-22 | Flint versus MiMo: small Rust/TypeScript tasks | Both passed 3/3 Rust coding tasks and 1/2 TypeScript tasks; Flint took 131.8s versus 491.7s. Both failed negative-money parsing. Explanation rubric is ambiguous. | One six-task run each; [report](flint-mimo-small-coding.md). |
 | 2026-10-21–22 | Flint + rec/Pi Rust proxy | Stopped after 5,726s (about 95 minutes), with prolonged reasoning without tools. No successful build or tests established. | Incomplete; [retained proxy evidence](#proxy-trials). |
