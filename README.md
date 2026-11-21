@@ -367,6 +367,27 @@ It serves the API model `muse-glimmer` at
 `http://127.0.0.1:8082/v1`. The official dynamic Q4_K_XL model and vision
 projector live under `~/models/gguf/meta/muse-glimmer-30b`.
 
+## Experimental Nanbeige MLX with Pi
+
+The host-local `pi-nanbeige` launcher connects Pi 1.1.0 to the mixed 4/6-bit
+Nanbeige4.3 33B oMLX server at `http://127.0.0.1:18340/v1`:
+
+```bash
+cd ~/code/my-project
+pi-nanbeige
+```
+
+Use `/thinking` to select high (enabled) or off. Ctrl-D exits Pi when its editor
+is empty; the model server stays running. The launcher uses a separate Pi home
+with native read, write, edit and bash tools. Its configuration and server log
+live under `~/Library/Application Support/local-models/interactive/nanbeige43-mixed/`.
+This setup is experimental and is not a `modelctl` profile. For a later restart,
+after confirming port 18340 is free, run that directory's `start-server.sh` in a
+terminal and leave it open; Ctrl-C stops that foreground server.
+
+See the [Nanbeige mixed MLX findings](benchmarks/nanbeige43-mlx-mixed.md) for
+limitations and retained validation evidence.
+
 ## Download verification
 
 For new model downloads, use aria2 for resumable transfer only, with the agreed
