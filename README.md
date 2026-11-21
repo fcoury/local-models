@@ -67,6 +67,21 @@ Run `modelctl doctor` after moving or updating models. The complete inventory,
 including non-server assets and application-managed models, is in
 `models.toml`.
 
+## Hy4 Flash with OpenCode
+
+Hy4 runs on the patched Metal server at `127.0.0.1:18437`. From the project
+directory, including an SSH session on the Mac, run:
+
+```bash
+modelctl start hy4-flash-q4-k-m
+hy4-opencode
+```
+
+The launcher uses the verified direct mode. See the
+[Hy4 run report](benchmarks/hy4-flash/README.md#opencode-integration) for a
+single-prompt example and SSH tunnel usage. Stop the server with
+`modelctl stop hy4-flash-q4-k-m`.
+
 ## Strands Decider 2B v21
 
 The pinned v21 checkpoint uses a Qwen3.5 2B base, a LoRA adapter, and a pointer

@@ -1,0 +1,54 @@
+{
+  "providers": {
+    "hy4-local": {
+      "name": "Local Hy4",
+      "package": "@opencode/ai/providers/openai-compatible",
+      "settings": {
+        "baseURL": "http://127.0.0.1:18437/v1",
+        "apiKey": "local"
+      },
+      "models": {
+        "hy4-flash-q4-k-m": {
+          "name": "Hy4 Flash Q4_K_M",
+          "capabilities": {
+            "tools": true,
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "limit": {
+            "context": 65536,
+            "output": 8192
+          },
+          "variants": [
+            {
+              "id": "direct",
+              "body": {
+                "chat_template_kwargs": {
+                  "reasoning_effort": "no_think"
+                }
+              }
+            },
+            {
+              "id": "deep",
+              "body": {
+                "chat_template_kwargs": {
+                  "reasoning_effort": "high",
+                  "preserved_thinking": false
+                }
+              }
+            }
+          ]
+        }
+      },
+      "body": {
+        "temperature": 0.9,
+        "top_p": 1.0
+      }
+    }
+  },
+  "model": "hy4-local/hy4-flash-q4-k-m#direct"
+}

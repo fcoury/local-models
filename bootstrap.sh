@@ -47,6 +47,7 @@ mkdir -p \
   "$STATE_HOME/pids"
 
 ensure_link "$REPO_DIR/bin/modelctl" "$HOME/.local/bin/modelctl"
+ensure_link "$REPO_DIR/bin/hy4-opencode" "$HOME/.local/bin/hy4-opencode"
 ensure_link "$REPO_DIR/bin/modelbench" "$HOME/.local/bin/modelbench"
 ensure_link "$REPO_DIR/completions/modelctl.fish" "$HOME/.config/fish/completions/modelctl.fish"
 ensure_link "$REPO_DIR/env.sh" "$HOME/.config/local-models/env"

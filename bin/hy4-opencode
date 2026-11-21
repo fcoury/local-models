@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source_path="${BASH_SOURCE[0]}"
+while [[ -L "$source_path" ]]; do
+  source_dir="$(cd "$(dirname "$source_path")" && pwd)"
+  source_path="$(readlink "$source_path")"
+  [[ "$source_path" == /* ]] || source_path="$source_dir/$source_path"
+done
+root="$(cd "$(dirname "$source_path")/.." && pwd)"
+config="$root/benchmarks/hy4-flash/opencode.json"
+
+case "${1:-}" in
+  -h|--help)
+    echo "Usage: hy4-opencode [DIRECTORY] | hy4-opencode run [OPENCODE_RUN_ARGS]"
+    echo "Requires Hy4 on localhost:18437, directly or through an SSH tunnel."
+    exit 0
+    ;;
+esac
+
+opencode_bin="$(command -v opencode || true)"
+if [[ -z "$opencode_bin" ]]; then opencode_bin="$HOME/.opencode/bin/opencode"; fi
+if [[ ! -x "$opencode_bin" ]]; then
+  echo "OpenCode is required. Install it or add it to PATH." >&2
+  exit 1
+fi
+if ! curl -fsS --max-time 3 http://127.0.0.1:18437/health >/dev/null 2>&1 ||
+   ! curl -fsS --max-time 3 http://127.0.0.1:18437/v1/models 2>/dev/null |
+       jq -e '.data | any(.id == "hy4-flash-q4-k-m")' >/dev/null; then
+  echo "Hy4 is unavailable on localhost:18437. Start it with: modelctl start hy4-flash-q4-k-m" >&2
+  exit 1
+fi
+
+export OPENCODE_CONFIG="$config"
+if [[ "${1:-}" == run ]]; then
+  shift
+  exec "$opencode_bin" run --standalone "$@"
+fi
+exec "$opencode_bin" --standalone "$@"

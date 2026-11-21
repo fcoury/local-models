@@ -402,3 +402,26 @@ vision = false
 mtp = false
 consumer = "DSH, OMP, and OpenAI-compatible clients"
 notes = "Checksum, load, API smoke and bounded DSH editing/tests passed. Resident mode needs desktop memory headroom: initial app workload caused warnings; pressure stayed normal after authorized cleanup. Requested 512-row prefill, but V4.1 allocated a 2048-row graph. Requires 112 GiB Metal wired ceiling and exclusive large-model use. Long-session compaction untested."
+
+[[models]]
+id = "hy4-flash-q4-k-m"
+name = "Hy4 Flash AngelSlim Q4_K_M"
+format = "Split GGUF"
+runner = "llama.cpp with AngelSlim Metal patch"
+path = "gguf/tencent/hy4-flash-q4-k-m-bcbc7db/Hy4-flash-Q4_K_M-00001-of-00002.gguf"
+port = 18437
+context = 65536
+output = 8192
+status = "ready"
+api_model = "hy4-flash-q4-k-m"
+bytes = 168347133632
+source = "AngelSlim/Hy4-flash-GGUF"
+source_revision = "bcbc7db5dcf4162cc1e1b8ed6c65567e843ebe46"
+runtime_path = "~/models/runtime/hy4-flash-angelslim-bcbc7db/source/build/bin/llama-server"
+runtime_commit = "2cbca389f515df455412dafa07e2b1359cc72a6d"
+runtime_sha256 = "3cd99f67b77f82fe98176e959cd3b633f1980347ec81b142e16633077248e04b"
+quantization = "Q4_K_M"
+vision = false
+mtp = true
+consumer = "OpenCode"
+notes = "Verified two-shard bundle; 64K, one slot, text only, MTP depth 2, native no_think default."
