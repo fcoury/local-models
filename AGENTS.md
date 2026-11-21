@@ -15,6 +15,25 @@
   Older evidence may remain in a runtime directory or retained worktree.
   Record its actual location rather than moving it or assuming the standard path.
 
+## Model downloads and verification
+
+- Use resumable aria2 transfers with the agreed bandwidth cap. Preserve partial
+  files and `.aria2` resume state if interrupted.
+- Transfer with `--check-integrity=false` and omit aria2's `--checksum` option.
+  Its built-in checksum pass is substantially slower on this host than the
+  system OpenSSL implementation.
+- After the transfer exits successfully, verify the complete file separately
+  with `/usr/bin/openssl dgst -sha256 FILE`. Compare the actual digest with the
+  expected SHA-256 from the pinned publisher/LFS metadata; printing a digest
+  alone is not verification.
+- Record the pinned source revision, expected/actual digest, byte size and
+  verification result outside Git. Do not mark the download verified or load
+  it until the digest matches. File size and absence of `.aria2` are not proof
+  that the separate checksum check has passed.
+- Use one complete checksum pass by default. Repeat it only for an explicit
+  integrity recheck or a concrete concern, rather than automatically running
+  a second full-file `doctor` hash immediately after successful verification.
+
 ## Recording findings
 
 After an evaluation or a change to a model recommendation:

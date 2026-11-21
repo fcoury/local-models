@@ -368,6 +368,23 @@ It serves the API model `muse-glimmer` at
 `http://127.0.0.1:8082/v1`. The official dynamic Q4_K_XL model and vision
 projector live under `~/models/gguf/meta/muse-glimmer-30b`.
 
+## Download verification
+
+For new model downloads, use aria2 for resumable transfer only, with the agreed
+bandwidth cap, `--check-integrity=false`, and no `--checksum` option. After a
+successful transfer, use `/usr/bin/openssl dgst -sha256 FILE` and compare its
+output with the expected SHA-256 from the pinned publisher/LFS metadata.
+The system OpenSSL checksum implementation is substantially faster on this
+host than aria2's built-in checker.
+
+Save the source revision, expected and actual digest, file size and verified
+result alongside the model or in the retained download evidence. The model
+is ready for loading only after the digest matches; file size or a missing
+`.aria2` control file alone does not establish integrity. Preserve partial
+files and resume state on interruption. Avoid a redundant second full-file
+hash immediately afterward; use `modelctl doctor` when an independent
+integrity recheck is needed.
+
 ## Storage policy
 
 - `~/models/cache` contains relocatable download caches.
@@ -432,16 +449,15 @@ Engram remains disk-backed. The source revision and expected checksum are in
 `models.toml`. Preparation and limitations are recorded in
 [the setup report](benchmarks/deepseek-maya-xs-setup.md).
 
-For a fresh download, wait for aria2's download/checksum operation to succeed
-before loading. The profile refuses readiness while its `.aria2` control file exists;
-do not delete that file to bypass the check. `doctor` independently rehashes
-the entire GGUF and can take several minutes. Avoid running it alongside the
-downloader's verification. The Metal wired ceiling must be raised before
+For a fresh download, complete the transfer and separate OpenSSL verification
+described above before loading. The profile refuses readiness while its
+`.aria2` control file exists; do not delete that file to bypass an incomplete
+transfer. `doctor` performs another complete integrity check when needed;
+avoid running it alongside another download/checksum operation. The Metal wired ceiling must be raised before
 loading; this command changes it for the current boot only:
 
 ```bash
-# After download verification has succeeded:
-modelctl doctor deepseek-v4.1-flash-maya-xs-64k
+# After download and OpenSSL verification have succeeded:
 sudo sysctl iogpu.wired_limit_mb=114688
 modelctl start deepseek-v4.1-flash-maya-xs-64k
 python3 tests/smoke_maya_xs.py --live
