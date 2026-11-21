@@ -1,0 +1,6 @@
+- name: openai/rust-eval
+  edit_format: whole
+  weak_model_name: openai/rust-eval
+  use_temperature: false
+  extra_params:
+    max_tokens: 8192

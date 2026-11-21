@@ -1,0 +1,372 @@
+{
+  "id": "inkling-mini-rust-screen-v0.1",
+  "date": "2026-11-20",
+  "image": "sha256:1f9e1e097777758095371dd400df1072835b8f72f46d0568c3376dec82c3f9ce",
+  "platform": "linux/arm64",
+  "rustc": "1.97.1 (8bab26f4f 2026-07-14)",
+  "container_python": "3.11.2",
+  "aider_revision": "5dc9490bb35f9729ef2c95d00a19ccd30c26339c",
+  "polyglot_revision": "7e0611e77b54e2dea774cdc0aa00cf9f7ed6144f",
+  "models": [
+    {
+      "key": "inkling-low",
+      "repo": "ggml-org/Inkling-2-Mini-GGUF",
+      "revision": "db61c5b492a6a034d986328d28274af0a439aa6c",
+      "reasoning_effort": "low"
+    }
+  ],
+  "exercises": [
+    "parallel-letter-frequency",
+    "forth",
+    "acronym",
+    "wordy",
+    "variable-length-quantity"
+  ],
+  "exercise_order": [
+    "parallel-letter-frequency",
+    "forth",
+    "acronym",
+    "wordy",
+    "variable-length-quantity"
+  ],
+  "random_seed": 0,
+  "tries": 2,
+  "edit_format": "whole",
+  "threads": 1,
+  "generation_timeout_seconds": 3600,
+  "test_timeout_seconds": 180,
+  "temperature": 0,
+  "top_p": 1,
+  "outgoing_seed": 0,
+  "native_thinking": "off",
+  "max_output_tokens": 8192,
+  "configured_context": 65536,
+  "default_aider_reflections": 3,
+  "default_aider_auto_lint": true,
+  "resource_limits": {
+    "memory": "8g",
+    "cpus": 4,
+    "pids": 512,
+    "tmpfs": "2g",
+    "runner_network": "none"
+  },
+  "modelctl_sha256": "f76e8890a40acb4a0f3a123cf056db841c80a6d8c45ebeaccfcb2c6f37a231da",
+  "fixture_manifest_sha256": "bab44f8f7724506561e5dac6b8ce3c0e93a2c4ccf75a7b6f1fc980d0be0ee7d8",
+  "container_harness": [
+    "aider_entry.py",
+    "aider_grade.py",
+    "aider-model-settings.yml",
+    "aider-model-metadata.json"
+  ],
+  "frozen_files": {
+    "aider_entry.py": "a6671f403b2d9bef787b77a67342e37a44f37654beab6b70bf1af72bdcad585c",
+    "bounded.py": "27e386f8187691f7ccadb94a7fa908b85586f50d64e076f069fa4f86a8159507",
+    "aider_grade.py": "797a74f1685bb39dc9d8d64d9403b7a46b98a341a2481e8a56911f7b75425b35",
+    "run_inkling.py": "fa8b86545803f07fc18944116811290cfa9fe4af5864046bf18f7f2d5f5bf497",
+    "qualify_aider.py": "cf0f1c40044764de8e38a45f23396f74a3809052e2af0494c30e5af4c8745dd7",
+    "aider_host.py": "5f587d1859e9f59cb36562c6aa6b9a6a6a007292572215df1886fe30f8a018ee",
+    "aider-model-settings.yml": "fe07cddd5ac835a060cb4e8de2aaf266e180fdd05b33f382f19db67bf43ed0c7",
+    "aider-model-metadata.json": "8060d39110f7d77145543a5b8a27addc02eb932c07812ba113c49e0ce4db0d27",
+    "api_policy.py": "e3ed3aef555490f8b5b49e174caa1ce884ec92ddcb68d7d91fc733ed8a89db83",
+    "compare_aider.py": "85568b32bf2b4a149a3eee5ed5a74eacc2ab38cc02520a4a6fb29df15ea3272f"
+  },
+  "qualification": "/Users/fcoury/Library/Application Support/local-models/benchmarks/inkling-mini-20261120/qualification/qualification.json",
+  "lifecycle": "Join each Coder background summary before moving to the next task or closing the API bridge",
+  "lifecycle_regression_receipt": "/Users/fcoury/Library/Application Support/local-models/benchmarks/aider-rust-full-v0.1/qualification-edit-loop/qualification.json",
+  "superseded_infrastructure_trial": "/Users/fcoury/Library/Application Support/local-models/benchmarks/aider-rust-v0.1/comparison-20261104T214945Z",
+  "reference_protocol": "/Users/fcoury/code/local-models.codex-rust-eval-standard/benchmarks/rust-coding/aider-ds4-protocol-v0.3.json",
+  "extension": "Five-task screen using full-suite isolated fixtures; Inkling low reasoning versus Flash Next native off. One repetition.",
+  "unchanged_environment_qualification": "/Users/fcoury/Library/Application Support/local-models/benchmarks/aider-rust-full-v0.1/qualification-v02/environment",
+  "frozen_at": "2026-11-05T01:42:10.796878+00:00",
+  "external_source_sha256": {
+    "/Users/fcoury/code/local-models/bin/modelctl": "f76e8890a40acb4a0f3a123cf056db841c80a6d8c45ebeaccfcb2c6f37a231da",
+    "/Users/fcoury/code/local-models/bin/modelctl-verified.py": "ab57826d8e064042365584e33bd99c1b491b8bfb0c2e29025ef9dae19c5b1ad8",
+    "/Users/fcoury/code/local-models/models.toml": "f4573fd33409ecadae012ccc0ec2af022eed507cf7acf4315a26c21f88a818ed"
+  },
+  "model_artifact_receipts": {
+    "ds4-stq-v2": {
+      "path": "/Users/fcoury/Library/Application Support/local-models/verification/deepseek41-stq-175-v2.json",
+      "sha256": "54cfef0c49233821d4a40bab8b120dc7055ca40de306cdaaef8dab4f48207208",
+      "files": 101
+    },
+    "flash-next-iq": {
+      "path": "/Users/fcoury/Library/Application Support/local-models/verification/qwen38-flash-next-iq.json",
+      "sha256": "3514842eca3b8d518fd388709a591cfda0e0caa76a70668815bc790c729eb969",
+      "files": 113
+    }
+  },
+  "dependency_manifest_sha256": "092b3d3db48e7dac186fad0f2bda7ecc4422e4d03cbd2102ef567c7607c64a3f",
+  "dependencies": [
+    {
+      "name": "aho-corasick",
+      "version": "1.1.5",
+      "package_sha256": "c982642fa9e8606056828ee9a8505737230110bb1099153c79efe865c59d12ba"
+    },
+    {
+      "name": "anyhow",
+      "version": "1.0.104",
+      "package_sha256": "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
+    },
+    {
+      "name": "autocfg",
+      "version": "1.5.1",
+      "package_sha256": "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
+    },
+    {
+      "name": "bitflags",
+      "version": "1.3.2",
+      "package_sha256": "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
+    },
+    {
+      "name": "cfg-if",
+      "version": "1.0.5",
+      "package_sha256": "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600"
+    },
+    {
+      "name": "cloudabi",
+      "version": "0.0.3",
+      "package_sha256": "ddfc5b9aa5d4507acaf872de71051dfd0e309860e88966e1051e462a077aac4f"
+    },
+    {
+      "name": "counter",
+      "version": "0.5.7",
+      "package_sha256": "2d458e66999348f56fd3ffcfbb7f7951542075ca8359687c703de6500c1ddccd"
+    },
+    {
+      "name": "deranged",
+      "version": "0.5.9",
+      "package_sha256": "9e9de72ce2ad1f90dc62fa25f0f430ef85eb4b0d8fa0be4f30373bc40a21d28e"
+    },
+    {
+      "name": "either",
+      "version": "1.19.0",
+      "package_sha256": "0e9c71c2167ca323c882b99918929403426e2373ea17242ff5653e0d5e1058be"
+    },
+    {
+      "name": "fuchsia-cprng",
+      "version": "0.1.1",
+      "package_sha256": "a06f77d526c1a601b7c4cdd98f54b5eaabffc14d5f2f0296febdc7f357c6d3ba"
+    },
+    {
+      "name": "getrandom",
+      "version": "0.2.17",
+      "package_sha256": "ff2abc00be7fca6ebc474524697ae276ad847ad0a6b3faa4bcb027e9a4614ad0"
+    },
+    {
+      "name": "itertools",
+      "version": "0.14.0",
+      "package_sha256": "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
+    },
+    {
+      "name": "libc",
+      "version": "0.2.191",
+      "package_sha256": "65cd87c9a6d60536580b316ad985726104730a5151c99845f2490428ef91240a"
+    },
+    {
+      "name": "memchr",
+      "version": "2.8.3",
+      "package_sha256": "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
+    },
+    {
+      "name": "num-bigint",
+      "version": "0.4.8",
+      "package_sha256": "c89e69e7e0f03bea5ef08013795c25018e101932225a656383bd384495ecc367"
+    },
+    {
+      "name": "num-conv",
+      "version": "0.2.2",
+      "package_sha256": "521739c6d2bac4aa25192232afe6841231376b2b26d4d9fae5ecf8ca5772e441"
+    },
+    {
+      "name": "num-integer",
+      "version": "0.1.47",
+      "package_sha256": "7ce2d95d4b3734dc35aa2f45e1aa22cd416814592a4f9d9205e11affd5b8e10b"
+    },
+    {
+      "name": "num-traits",
+      "version": "0.2.19",
+      "package_sha256": "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
+    },
+    {
+      "name": "permutohedron",
+      "version": "0.2.4",
+      "package_sha256": "b687ff7b5da449d39e418ad391e5e08da53ec334903ddbb921db208908fc372c"
+    },
+    {
+      "name": "powerfmt",
+      "version": "0.2.1",
+      "package_sha256": "4a6394b9e965e73d0a289ee54f589087e2c676aedf60885baf52c76b771e4958"
+    },
+    {
+      "name": "ppv-lite86",
+      "version": "0.2.21",
+      "package_sha256": "85eae3c4ed2f50dcfe72643da4befc30deadb458a9b590d720cde2f2b1e97da9"
+    },
+    {
+      "name": "proc-macro2",
+      "version": "1.0.107",
+      "package_sha256": "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9"
+    },
+    {
+      "name": "quote",
+      "version": "1.0.47",
+      "package_sha256": "1fbf4db142a473a8d80c26bbf18454ed458bf8d26c8219c331daecfdbd079001"
+    },
+    {
+      "name": "rand",
+      "version": "0.5.6",
+      "package_sha256": "c618c47cd3ebd209790115ab837de41425723956ad3ce2e6a7f09890947cacb9"
+    },
+    {
+      "name": "rand",
+      "version": "0.8.8",
+      "package_sha256": "e058c7de0b26af77780c769414d6257830bb240f3c38477dbc2c16e5f54d6d4c"
+    },
+    {
+      "name": "rand_chacha",
+      "version": "0.3.1",
+      "package_sha256": "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
+    },
+    {
+      "name": "rand_core",
+      "version": "0.3.2",
+      "package_sha256": "96f815e01bbd9678b50d927f79aa1cf3ffdfdb1b9787317c1284dadb894ad0e8"
+    },
+    {
+      "name": "rand_core",
+      "version": "0.4.3",
+      "package_sha256": "0e5937858e6fd18cd595d558f90bb5de3b72ae23f9e3763af0e805949b04ef60"
+    },
+    {
+      "name": "rand_core",
+      "version": "0.6.4",
+      "package_sha256": "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
+    },
+    {
+      "name": "regex",
+      "version": "1.13.1",
+      "package_sha256": "f020237b6c8eed93db2e2cb53c00c60a8e1bc73da7d073199a1180401450218d"
+    },
+    {
+      "name": "regex-automata",
+      "version": "0.4.18",
+      "package_sha256": "ad8553b9b26413251cbf30e620595c7a41b3887f03da04579c0e6b0d6a06b4b2"
+    },
+    {
+      "name": "regex-syntax",
+      "version": "0.8.11",
+      "package_sha256": "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
+    },
+    {
+      "name": "serde_core",
+      "version": "1.0.229",
+      "package_sha256": "67dca2c9c51e58a4791a4b1ed58308b39c64224d349a935ab5039aa360942a48"
+    },
+    {
+      "name": "serde_derive",
+      "version": "1.0.229",
+      "package_sha256": "e7a5d71263a5a7d47b41f6b3f06ba276f10cc18b0931f1799f710578e2309348"
+    },
+    {
+      "name": "syn",
+      "version": "2.0.119",
+      "package_sha256": "872831b642d1a07999a962a351ed35b955ea2cfc8f3862091e2a240a84f17297"
+    },
+    {
+      "name": "syn",
+      "version": "3.0.9",
+      "package_sha256": "d78c8dee4c7bf0e14673097256fed6142ce9d3b85a408189d07482442145823b"
+    },
+    {
+      "name": "thiserror",
+      "version": "1.0.69",
+      "package_sha256": "b6aaf5339b578ea85b50e080feb250a3e8ae8cfcdff9a461c9ec2904bc923f52"
+    },
+    {
+      "name": "thiserror-impl",
+      "version": "1.0.69",
+      "package_sha256": "4fee6c4efc90059e10f81e6d42c60a18f76588c3d74cb83a0b242a2b6c7504c1"
+    },
+    {
+      "name": "time",
+      "version": "0.3.55",
+      "package_sha256": "cdb87b95ec50ddfa440816d227a17b2ccbdda963a316a727fda0fc4334f7d134"
+    },
+    {
+      "name": "time-core",
+      "version": "0.1.9",
+      "package_sha256": "9e1c906769ad99c88eaa54e728060edef082f8e358ff32030cb7c7d315e81109"
+    },
+    {
+      "name": "unicode-ident",
+      "version": "1.0.27",
+      "package_sha256": "a2c754d6c33795a1c324727428e5a7dedb5b06195f9890bdbcba760d3e246563"
+    },
+    {
+      "name": "wasi",
+      "version": "0.11.1+wasi-snapshot-preview1",
+      "package_sha256": "ccf3ec651a847eb01de73ccad15eb7d99f80485de043efb2f370cd654f4ea44b"
+    },
+    {
+      "name": "winapi",
+      "version": "0.3.9",
+      "package_sha256": "5c839a674fcd7a98952e593242ea400abe93992746761e38641405d28b00f419"
+    },
+    {
+      "name": "winapi-i686-pc-windows-gnu",
+      "version": "0.4.0",
+      "package_sha256": "ac3b87c63620426dd9b991e5ce0329eff545bccbbb34f3be09ff6fb6ab51b7b6"
+    },
+    {
+      "name": "winapi-x86_64-pc-windows-gnu",
+      "version": "0.4.0",
+      "package_sha256": "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
+    },
+    {
+      "name": "zerocopy",
+      "version": "0.8.63",
+      "package_sha256": "e5fe1f8f1b06191a00962174c61aa5005e0bb391a6d80d07e24d115c01a92ed8"
+    },
+    {
+      "name": "zerocopy-derive",
+      "version": "0.8.63",
+      "package_sha256": "863ad3ac83293fb4d740aedbfdc9240dd8d1a50c1099acd76ce80ce7c7230c7f"
+    }
+  ],
+  "reference_only_dependencies": {
+    "alphametics": {
+      "itertools": "0.14",
+      "permutohedron": "0.2"
+    },
+    "decimal": {
+      "num-bigint": "0.4",
+      "num-traits": "0.2"
+    },
+    "grep": {
+      "thiserror": "1.0"
+    },
+    "pig-latin": {
+      "regex": "1.0"
+    },
+    "poker": {
+      "counter": "0.5"
+    },
+    "robot-name": {
+      "rand": "0.5"
+    }
+  },
+  "image_extension_base": "sha256:ea7424e4dcfbaee46609f69fab91fb717a814a8734417a7e16cae6fcf20229b2",
+  "reference_calibration": "30 published references pass; 6 use supplemental manifests only during controls; scored manifests retain upstream dependencies",
+  "repetitions": 1,
+  "binary": "/Users/fcoury/models/runtime/inkling-llama-9197945/source/build/bin/llama-server",
+  "binary_sha256": "960c163a7464dd3bebe5dd2cb5bf181e72079b725fd818cba1ba573e55053745",
+  "runtime_commit": "d7cb78c913ca76062302e8ffb5996ba3a946e41b",
+  "sampling": {
+    "temperature": 0,
+    "top_p": 1,
+    "seed": 0,
+    "reasoning_effort": "low",
+    "max_tokens": 8192
+  },
+  "runtime_pr": "https://github.com/ggml-org/llama.cpp/pull/32694"
+}

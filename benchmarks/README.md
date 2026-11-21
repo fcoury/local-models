@@ -8,6 +8,7 @@ tasks and settings, so this is not a combined leaderboard.
 
 | Date | Experiment | Finding and practical implication | Status / evidence |
 |---|---|---|---|
+| 2026-11-20 | Inkling 2 Mini Q8 / low effort Rust screen | 1/5 first try, 3/5 within two in 24m07s; median decode 25.90 tok/s, two output caps. | All nine attempts independently verified; fresh Flash Next control refused memory preflight. Unmerged llama.cpp Mini support required. [Results and protocol](inkling-mini/README.md). |
 | 2026-10-25 | Retire DeepSeek V4 Flash Vision-Exp | Removed the older main GGUF, vision encoder, alias and catalog/launcher registration at user request; observed 81.63 GiB more free space. V4.1 and OrcaRouter artifacts preserved. | Storage cleanup, not a quality comparison; [receipt and recovery pins](deepseek-v4-retirement.md). |
 | 2026-10-24 | OrcaRouter Mix-256G controlled inference | Short generation/continuation and selected numerical checks pass at context 256 / 4 GiB cache; 3.27–3.35 prompt and 1.71–1.72 decode tokens/s. Agent and broader-context acceptance remain pending. | Phase 6 complete, coordinator review pending; [results and limitations](orcarouter-phase6-inference.md). |
 | 2026-10-24 | DeepSeek 1017 Maya-XS Abliterated setup | Checksum, resident load, API completion/tools/streaming and bounded DSH editing/tests passed. Initial memory warnings resolved after authorized desktop cleanup; long-session compaction untested. | Integration smoke, not a quality benchmark; [setup and live outcome](deepseek-maya-xs-setup.md). |
