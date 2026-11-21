@@ -76,28 +76,6 @@ consumer = "Vibebench fixed-template A/B evaluations"
 notes = "Reuses the qwen3.8-27b Q8 weights and mmproj; run only one of the baseline and fixed-template profiles at a time."
 
 [[models]]
-id = "qwen3.8-flash-next-iq4-xs"
-name = "Qwen3.8 Flash Next UD-IQ4_XS 32K"
-format = "GGUF"
-runner = "llama.cpp"
-path = "gguf/qwen/qwen3.8-flash-next-unsloth-ud-iq4_xs"
-port = 8084
-context = 32768
-output = 16384
-status = "ready"
-api_model = "qwen3.8-flash-next-iq4-xs"
-bytes = 93682584224
-source = "unsloth/Qwen3.8-Flash-Next-GGUF"
-source_revision = "c8b5954a88c2775c546b92593eda40ea041d3176"
-runtime_path = "~/code/llama.cpp-qwen38-flash-next"
-runtime_commit = "9723942adc518b43c4b95dc4dce6906903eb5e09"
-quantization = "UD-IQ4_XS"
-vision = true
-mtp = false
-consumer = "Vibebench LittleCoder evaluations"
-notes = "Single-slot 32K qualification profile using the embedded Qwen template and F16 vision projector. Long-context and MTP evaluations remain separate."
-
-[[models]]
 id = "qwen3.8-flash-next-iq2-mtp"
 name = "Qwen3.8 Flash Next IQ2 MTP 32K"
 format = "GGUF"
@@ -199,15 +177,6 @@ output = 32768
 status = "ready"
 consumer = "modelbench-rs, OpenCode, and OpenAI-compatible clients"
 notes = "Resident native-MTP server; deterministic greedy decoding with Qwen tool/reasoning parsing; hardware-safe 40960-token context and 32768-token output ceiling by default."
-
-[[models]]
-id = "qwen3.6-35b-a3b"
-name = "Qwen3.6 35B A3B OptiQ 4-bit"
-format = "MLX"
-runner = "mlx-lm"
-path = "mlx/qwen/qwen3.6-35b-a3b"
-port = 8081
-status = "ready"
 
 [[models]]
 id = "glm-5.3-flash-q2"
@@ -402,6 +371,82 @@ vision = false
 mtp = false
 consumer = "DSH, OMP, and OpenAI-compatible clients"
 notes = "Checksum, load, API smoke and bounded DSH editing/tests passed. Resident mode needs desktop memory headroom: initial app workload caused warnings; pressure stayed normal after authorized cleanup. Requested 512-row prefill, but V4.1 allocated a 2048-row graph. Requires 112 GiB Metal wired ceiling and exclusive large-model use. Long-session compaction untested."
+
+[[models]]
+id = "deepseek-v4.1-flash-sushi-stq-175"
+name = "DeepSeek V4.1 Flash 1017 Sushi STQ 1.75bpw"
+format = "Sushi STQ safetensors"
+runner = "Sushi 1.4.0"
+path = "sushi/deepseek-v41-1017-stq-175-07fec972"
+port = 18351
+context = 65536
+output = 32768
+status = "ready"
+api_model = "deepseek-v41-1017-stq-175-07fec972"
+bytes = 332114580286
+source = "beamster/DeepSeek-V4.1-Flash-1017-Sushi-STQ-1.75bpw"
+source_revision = "07fec972538639726b868f81e89d9d4f5005fe10"
+runtime_path = "~/models/runtime/sushi-v1.4.0/sushi-macos-arm64"
+runtime_sha256 = "ce4b76e6a1a693d4505784564753e25a4cf17e5c524e2387c3fc65761f5504a5"
+notes = "90 GiB resident budget, DSpark, no vision; verify memory preflight."
+
+[[models]]
+id = "deepseek-v4.1-flash-sushi-stq-175-v2"
+name = "DeepSeek V4.1 Flash 1017 Sushi STQ 1.75bpw revision 2.0"
+format = "Sushi STQ safetensors"
+runner = "Sushi 1.5.0"
+path = "sushi/deepseek-v41-1017-stq-175-v2-89630812"
+port = 18352
+context = 65536
+output = 32768
+status = "ready"
+api_model = "deepseek-v41-1017-stq-175-v2-89630812"
+bytes = 332116976095
+source = "beamster/DeepSeek-V4.1-Flash-1017-Sushi-STQ-1.75bpw"
+source_revision = "89630812557263bb7a7582fb1f30455573511155"
+runtime_path = "~/models/runtime/sushi-v1.5.0/sushi-macos-arm64"
+runtime_commit = "75996eda01856c7902d9bb8e0f2c2191956012e3"
+runtime_sha256 = "d0c9243c052fe8cf667eb5473e739cf08ca8f70407ad87b1eb283daf2032690f"
+runtime_archive_sha256 = "8f232828c902d30921dc71fd778f2826aa376aaf7a684b8e7c24c9d11967f3ac"
+quantization = "STQ PAIR1 routed experts at 1.75bpw; SPEC1 4-bit trunk, 6-bit head; pack revision 2.0"
+notes = "Separate from retained revision 1.0. 90 GiB target, DSpark, no vision. Full Aider Rust: 14/30 first try, 23/30 within two in 24m47s; all 46 attempts independently verified. Live DSH qualification pending."
+
+[[models]]
+id = "qwen3.8-27b-abliterated-oq8e-mtp"
+name = "Qwen3.8 27B Abliterated MLX oQ8e MTP"
+format = "MLX oQ8e safetensors"
+runner = "oMLX 0.7.2"
+path = "mlx/qwen/qwen3.8-27b-abliterated-oq8e-mtp"
+port = 18320
+context = 65536
+output = 32768
+status = "ready"
+api_model = "qwen-oq8e"
+bytes = 30028656170
+source = "windowsxp811203/Qwen3.8-27B-Abliterated-MLX-oQ8e-mtp"
+source_revision = "4d4c0a483592ffbff0190573276054f2ad962a70"
+runtime_path = "~/models/runtime/omlx-eval-20261023/.venv"
+runtime_commit = "e3bcfb55e35a1ee343b39535e903509d8f64d58d"
+notes = "Fixed MTP depth 3; isolated settings with preserved thinking."
+
+[[models]]
+id = "qwen3.8-flash-next-iq-mlx-4.7bpw"
+name = "Qwen3.8 Flash Next iQ-MLX 4.7bpw"
+format = "mlx-serve calibrated 4-bit experts and 8-bit rest"
+runner = "mlx-serve 26.11.1"
+path = "mlx/qwen/qwen3.8-flash-next-iq-4.7bpw-a0e89db"
+port = 18434
+context = 65536
+output = 32768
+status = "ready"
+api_model = "qwen3.8-flash-next-iq-4.7bpw-a0e89db"
+bytes = 107326639758
+source = "ddalcu/Qwen3.8-Flash-Next-MLX-Serve-iQ-MLX-4.7bpw"
+source_revision = "a0e89db090a3e4b2e8ea2118fe9d0324d3854aca"
+runtime_path = "~/models/runtime/mlx-serve-v26.11.1/mlx-serve-macos-arm64"
+runtime_sha256 = "62e3e3fb82f577101a66ac708c3d4925ee4881d91cce08e9b811dafb1ecd7238"
+runtime_archive_sha256 = "9acaa7a21b294536c3db9f2683d85079727b4e8db725d34260020499523dc267"
+notes = "Local hosting and native thinking-off verified. Full Aider Rust: 15/30 first try, 22/30 within two in 28m06s; all 45 attempts independently verified. 64K context, 2048 reasoning budget when enabled, MTP and PLD off by default. Older uncalibrated mixed-4-8bit pack retention unchanged by this evaluation."
 
 [[models]]
 id = "hy4-flash-q4-k-m"

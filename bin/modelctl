@@ -18,13 +18,6 @@ MUSE_GLIMMER_HARNESS_DIR="$MUSE_GLIMMER_HARNESS_REPO/agentic-fundamentals"
 MUSE_GLIMMER_HARNESS_VENV="${MUSE_GLIMMER_HARNESS_VENV:-$MODEL_HOME/runtime/muse-glimmer-harness-venv}"
 QWEN_FIXED_TEMPLATE="$MODEL_HOME/templates/qwen3.8/froggeric-v22.4.jinja"
 QWEN_FIXED_TEMPLATE_SHA256="696c4f110ae05f349f381b9c7f3ef40172adc369e918f18738fec0036d14fc7b"
-QWEN38_FLASH_RUNTIME_ROOT="${QWEN38_FLASH_RUNTIME_ROOT:-$HOME/code/llama.cpp-qwen38-flash-next}"
-QWEN38_FLASH_RUNTIME_COMMIT="9723942adc518b43c4b95dc4dce6906903eb5e09"
-QWEN38_FLASH_MODEL_DIR="$MODEL_HOME/gguf/qwen/qwen3.8-flash-next-unsloth-ud-iq4_xs"
-QWEN38_FLASH_SHARD_1="Qwen3.8-Flash-Next-UD-IQ4_XS-00001-of-00003.gguf"
-QWEN38_FLASH_SHARD_2="Qwen3.8-Flash-Next-UD-IQ4_XS-00002-of-00003.gguf"
-QWEN38_FLASH_SHARD_3="Qwen3.8-Flash-Next-UD-IQ4_XS-00003-of-00003.gguf"
-QWEN38_FLASH_MMPROJ="mmproj-F16.gguf"
 SIGNAL38_MODEL_DIR="$MODEL_HOME/gguf/qwen/signal-3.8-flash-next-ap-iq4-xs"
 SIGNAL38_MODEL="Signal-3.8-Flash-Next-AP-IQ4_XS.gguf"
 SIGNAL38_MMPROJ="mmproj-F16.gguf"
@@ -80,9 +73,12 @@ fi
 models() {
   cat <<'EOF'
 hy4-flash-q4-k-m
+qwen3.8-flash-next-iq-mlx-4.7bpw
+qwen3.8-27b-abliterated-oq8e-mtp
+deepseek-v4.1-flash-sushi-stq-175
+deepseek-v4.1-flash-sushi-stq-175-v2
 qwen3.8-27b
 qwen3.8-27b-fixed-v22-4
-qwen3.8-flash-next-iq4-xs
 qwen3.8-flash-next-iq2-mtp
 mimo-v2.6-flash-sushi-2.3bpw
 strands-decider-2b-v21
@@ -90,7 +86,6 @@ signal-3.8-flash-next-iq4-xs
 signal-3.8-flash-next-iq4-xs-mtp
 qwen3.8-27b-mlxfast-mtp
 qwen3.8-27b-mlxfast-mtp-server
-qwen3.6-35b-a3b
 deepseek-v4.1-flash-q2-32k
 deepseek-v4.1-flash-maya-xs-64k
 glm-5.3-flash-q2
@@ -140,19 +135,21 @@ completion_models() {
 label() {
   case "$1" in
     hy4-flash-q4-k-m) echo "Hy4 Flash AngelSlim Q4_K_M (64K, MTP)" ;;
+    qwen3.8-flash-next-iq-mlx-4.7bpw) echo "Qwen3.8 Flash Next iQ-MLX 4.7bpw 64K (mlx-serve)" ;;
+    deepseek-v4.1-flash-sushi-stq-175) echo "DeepSeek V4.1 Flash Sushi STQ 1.75bpw (90 GiB)" ;;
+    deepseek-v4.1-flash-sushi-stq-175-v2) echo "DeepSeek V4.1 Flash Sushi STQ 1.75bpw revision 2 (90 GiB)" ;;
+    qwen3.8-27b-abliterated-oq8e-mtp) echo "Qwen3.8 27B Abliterated oQ8e MTP (oMLX)" ;;
     deepseek-v4.1-flash-maya-xs-64k) echo "DeepSeek V4.1 Flash 1017 Maya-XS Abliterated 64K (DwarfStar Metal)" ;;
     qwen3.8-flash-next-iq2-mtp) echo "Qwen3.8 Flash Next IQ2 MTP 32K (DwarfStar Metal)" ;;
     deepseek-v4.1-flash-q2-32k) echo "DeepSeek V4.1 Flash 1017 Q2 32K (DwarfStar SSD)" ;;
     qwen3.8-27b) echo "Qwen3.8 27B Q8 (llama.cpp)" ;;
     qwen3.8-27b-fixed-v22-4) echo "Qwen3.8 27B Q8 + Froggeric fixed template v22.4" ;;
-    qwen3.8-flash-next-iq4-xs) echo "Qwen3.8 Flash Next UD-IQ4_XS 32K (pinned llama.cpp Metal)" ;;
     mimo-v2.6-flash-sushi-2.3bpw) echo "MiMo V2.6 Flash Sushi 2.3bpw 128K (Sushi Metal)" ;;
     strands-decider-2b-v21) echo "Strands Decider 2B v21 (MLX decision service)" ;;
     signal-3.8-flash-next-iq4-xs) echo "Signal 3.8 Flash Next AP-IQ4_XS 64K (llama.cpp Metal)" ;;
     signal-3.8-flash-next-iq4-xs-mtp) echo "Signal 3.8 Flash Next AP-IQ4_XS + MTP 64K (llama.cpp Metal)" ;;
     qwen3.8-27b-mlxfast-mtp) echo "Qwen3.8 27B MLX.fast native MTP harness" ;;
     qwen3.8-27b-mlxfast-mtp-server) echo "Qwen3.8 27B MLX.fast native MTP OpenAI server" ;;
-    qwen3.6-35b-a3b) echo "Qwen3.6 35B A3B OptiQ 4-bit (MLX)" ;;
     glm-5.3-flash-q2) echo "GLM 5.3 Flash Q2 65K (DS4)" ;;
     glm-5.3-flash-q2-131k) echo "GLM 5.3 Flash Q2 131K (DS4)" ;;
     minimax-h3-standard) echo "MiniMax H3 standard 4-bit (MLX)" ;;
@@ -173,9 +170,10 @@ label() {
 kind() {
   case "$1" in
     hy4-flash-q4-k-m) echo service ;;
+    qwen3.8-flash-next-iq-mlx-4.7bpw) echo service ;;
     deepseek-v4.1-flash-maya-xs-64k) echo service ;;
-    deepseek-v4.1-flash-q2-32k) echo service ;;
-    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq4-xs|qwen3.8-flash-next-iq2-mtp|mimo-v2.6-flash-sushi-2.3bpw|strands-decider-2b-v21|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|glm-5.3-flash-q2|glm-5.3-flash-q2-131k|minimax-h3-standard|minimax-h3-heretic|muse-glimmer-30b-server)
+    deepseek-v4.1-flash-q2-32k|deepseek-v4.1-flash-sushi-stq-175|deepseek-v4.1-flash-sushi-stq-175-v2|qwen3.8-27b-abliterated-oq8e-mtp) echo service ;;
+    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq2-mtp|mimo-v2.6-flash-sushi-2.3bpw|strands-decider-2b-v21|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp|qwen3.8-27b-mlxfast-mtp-server|glm-5.3-flash-q2|glm-5.3-flash-q2-131k|minimax-h3-standard|minimax-h3-heretic|muse-glimmer-30b-server)
       echo service
       ;;
     muse-glimmer-30b|qwen3.8-27b-mlxfast-mtp)
@@ -190,6 +188,10 @@ kind() {
 port() {
   case "$1" in
     hy4-flash-q4-k-m) echo 18437 ;;
+    qwen3.8-flash-next-iq-mlx-4.7bpw) echo 18434 ;;
+    deepseek-v4.1-flash-sushi-stq-175) echo 18351 ;;
+    deepseek-v4.1-flash-sushi-stq-175-v2) echo 18352 ;;
+    qwen3.8-27b-abliterated-oq8e-mtp) echo 18320 ;;
     deepseek-v4.1-flash-maya-xs-64k) echo 8011 ;;
     qwen3.8-flash-next-iq2-mtp) echo 8008 ;;
     mimo-v2.6-flash-sushi-2.3bpw) echo 12345 ;;
@@ -197,11 +199,9 @@ port() {
     deepseek-v4.1-flash-q2-32k) echo 8009 ;;
     qwen3.8-27b) echo 8080 ;;
     qwen3.8-27b-fixed-v22-4) echo 8085 ;;
-    qwen3.8-flash-next-iq4-xs) echo 8084 ;;
     signal-3.8-flash-next-iq4-xs) echo 8086 ;;
     signal-3.8-flash-next-iq4-xs-mtp) echo 8087 ;;
     qwen3.8-27b-mlxfast-mtp-server) echo 8083 ;;
-    qwen3.6-35b-a3b) echo 8081 ;;
     glm-5.3-flash-q2) echo 8004 ;;
     glm-5.3-flash-q2-131k) echo 8007 ;;
     minimax-h3-standard) echo 11234 ;;
@@ -214,6 +214,10 @@ port() {
 api_model() {
   case "$1" in
     hy4-flash-q4-k-m) echo hy4-flash-q4-k-m ;;
+    qwen3.8-flash-next-iq-mlx-4.7bpw) echo qwen3.8-flash-next-iq-4.7bpw-a0e89db ;;
+    deepseek-v4.1-flash-sushi-stq-175) echo deepseek-v41-1017-stq-175-07fec972 ;;
+    deepseek-v4.1-flash-sushi-stq-175-v2) echo deepseek-v41-1017-stq-175-v2-89630812 ;;
+    qwen3.8-27b-abliterated-oq8e-mtp) echo qwen-oq8e ;;
     deepseek-v4.1-flash-maya-xs-64k) echo deepseek-v4.1-flash ;;
     qwen3.8-flash-next-iq2-mtp) echo qwen3.8-flash-next ;;
     mimo-v2.6-flash-sushi-2.3bpw) echo mimo-v2.6-flash-2.3bpw ;;
@@ -221,10 +225,8 @@ api_model() {
     deepseek-v4.1-flash-q2-32k) echo deepseek-v4.1-flash ;;
     qwen3.8-27b) echo 'ggml-org/Qwen3.8-27B-GGUF:Q8_0' ;;
     qwen3.8-27b-fixed-v22-4) echo 'qwen3.8-27b-q8-fixed-v22.4' ;;
-    qwen3.8-flash-next-iq4-xs) echo 'qwen3.8-flash-next-iq4-xs' ;;
     signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp) echo 'signal-3.8-flash-next' ;;
     qwen3.8-27b-mlxfast-mtp-server) echo 'qwen3.8-27b-mlxfast-mtp-server' ;;
-    qwen3.6-35b-a3b) echo 'mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit' ;;
     glm-5.3-flash-q2|glm-5.3-flash-q2-131k) echo 'glm-5.3-flash' ;;
     muse-glimmer-30b-server) echo 'muse-glimmer' ;;
     *) return 1 ;;
@@ -234,10 +236,12 @@ api_model() {
 context_size() {
   case "$1" in
     hy4-flash-q4-k-m) echo 65536 ;;
+    qwen3.8-flash-next-iq-mlx-4.7bpw) echo 65536 ;;
+    deepseek-v4.1-flash-sushi-stq-175|deepseek-v4.1-flash-sushi-stq-175-v2|qwen3.8-27b-abliterated-oq8e-mtp) echo 65536 ;;
     deepseek-v4.1-flash-maya-xs-64k) echo 65536 ;;
     deepseek-v4.1-flash-q2-32k) echo 32768 ;;
     qwen3.8-27b|qwen3.8-27b-fixed-v22-4|muse-glimmer-30b-server) echo 131072 ;;
-    qwen3.8-flash-next-iq4-xs|qwen3.8-flash-next-iq2-mtp) echo 32768 ;;
+    qwen3.8-flash-next-iq2-mtp) echo 32768 ;;
     mimo-v2.6-flash-sushi-2.3bpw) echo 131072 ;;
     strands-decider-2b-v21) echo 4096 ;;
     signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp) echo 65536 ;;
@@ -251,13 +255,15 @@ context_size() {
 output_size() {
   case "$1" in
     hy4-flash-q4-k-m) echo 8192 ;;
+    qwen3.8-flash-next-iq-mlx-4.7bpw) echo 32768 ;;
+    deepseek-v4.1-flash-sushi-stq-175|deepseek-v4.1-flash-sushi-stq-175-v2|qwen3.8-27b-abliterated-oq8e-mtp) echo 32768 ;;
     deepseek-v4.1-flash-maya-xs-64k) echo 16384 ;;
     deepseek-v4.1-flash-q2-32k) echo 16384 ;;
     mimo-v2.6-flash-sushi-2.3bpw) echo 32768 ;;
-    qwen3.8-flash-next-iq4-xs|qwen3.8-flash-next-iq2-mtp|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp)
+    qwen3.8-flash-next-iq2-mtp|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp)
       echo 16384
       ;;
-    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-27b-mlxfast-mtp-server|qwen3.6-35b-a3b|glm-5.3-flash-q2|glm-5.3-flash-q2-131k|muse-glimmer-30b-server)
+    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-27b-mlxfast-mtp-server|glm-5.3-flash-q2|glm-5.3-flash-q2-131k|muse-glimmer-30b-server)
       echo 32768
       ;;
     *) return 1 ;;
@@ -333,7 +339,7 @@ omp_family() {
     mimo-v2.6-flash-sushi-2.3bpw) echo sushi ;;
     deepseek-v4.1-flash-q2-32k|deepseek-v4.1-flash-maya-xs-64k) echo deepseek41-ds4 ;;
     glm-5.3-flash-q2|glm-5.3-flash-q2-131k) echo glm-ds4 ;;
-    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq4-xs|qwen3.8-flash-next-iq2-mtp|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp|qwen3.8-27b-mlxfast-mtp-server) echo qwen ;;
+    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq2-mtp|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp|qwen3.8-27b-mlxfast-mtp-server) echo qwen ;;
     *) return 1 ;;
   esac
 }
@@ -437,7 +443,7 @@ write_omp_models() {
     qwen)
       local input='["text"]'
       case "$id" in
-        qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp) input='["text", "image"]' ;;
+        qwen3.8-27b|qwen3.8-27b-fixed-v22-4|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp) input='["text", "image"]' ;;
       esac
       jq -n \
         --arg provider "$provider" \
@@ -593,6 +599,10 @@ run_dsh() {
 model_path() {
   case "$1" in
     hy4-flash-q4-k-m) echo "$HY4_MODEL_DIR/Hy4-flash-Q4_K_M-00001-of-00002.gguf" ;;
+    qwen3.8-flash-next-iq-mlx-4.7bpw) echo "$MODEL_HOME/mlx/qwen/qwen3.8-flash-next-iq-4.7bpw-a0e89db" ;;
+    deepseek-v4.1-flash-sushi-stq-175) echo "$MODEL_HOME/sushi/deepseek-v41-1017-stq-175-07fec972" ;;
+    deepseek-v4.1-flash-sushi-stq-175-v2) echo "$MODEL_HOME/sushi/deepseek-v41-1017-stq-175-v2-89630812" ;;
+    qwen3.8-27b-abliterated-oq8e-mtp) echo "$MODEL_HOME/mlx/qwen/qwen3.8-27b-abliterated-oq8e-mtp" ;;
     deepseek-v4.1-flash-maya-xs-64k) echo "$MODEL_HOME/gguf/deepseek/deepseek-v4.1-flash-1017-maya-xs-abliterated-7832036c/DeepSeek-V4.1-Flash-1017-Maya-XS-Abliterated.gguf" ;;
     strands-decider-2b-v21) echo "$STRANDS_DECIDER_DIR" ;;
     mimo-v2.6-flash-sushi-2.3bpw) echo "$SUSHI_MIMO_MODEL_DIR" ;;
@@ -600,11 +610,9 @@ model_path() {
     deepseek-v4.1-flash-q2-32k) echo "$MODEL_HOME/gguf/deepseek/deepseek-v4.1-flash-1017-q2/DeepSeek-V4.1-Flash-1017-IQ2_XXS-Q2_K-imatrix.gguf" ;;
     qwen3.8-27b) echo "$MODEL_HOME/aliases/qwen3.8-27b" ;;
     qwen3.8-27b-fixed-v22-4) echo "$MODEL_HOME/aliases/qwen3.8-27b" ;;
-    qwen3.8-flash-next-iq4-xs) echo "$QWEN38_FLASH_MODEL_DIR" ;;
     signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp) echo "$SIGNAL38_MODEL_DIR/$SIGNAL38_MODEL" ;;
     qwen3.8-27b-mlxfast-mtp) echo "$MODEL_HOME/mlx/qwen/qwen3.8-27b-mlxfast-mtp" ;;
     qwen3.8-27b-mlxfast-mtp-server) echo "$MODEL_HOME/mlx/qwen/qwen3.8-27b-mlxfast-mtp" ;;
-    qwen3.6-35b-a3b) echo "$MODEL_HOME/aliases/qwen3.6-35b-a3b-mlx" ;;
     glm-5.3-flash-q2|glm-5.3-flash-q2-131k) echo "$MODEL_HOME/gguf/glm-5.3-flash-antirez/GLM-5.3-Flash-Q2.gguf" ;;
     minimax-h3-standard) echo "$MODEL_HOME/mlx/minimax-h3/standard-4bit" ;;
     minimax-h3-heretic) echo "$MODEL_HOME/mlx/minimax-h3/heretic-4bit" ;;
@@ -657,8 +665,26 @@ ready() {
         "$(/usr/bin/openssl dgst -sha256 "$HY4_RUNTIME" | awk '{print $NF}')" == "$HY4_RUNTIME_SHA256" ]] &&
         python3 "$MODELCTL_ROOT/bin/modelctl-hy4-verified.py" "$HY4_MODEL_DIR" "$HY4_RECEIPT"
       ;;
+    qwen3.8-flash-next-iq-mlx-4.7bpw)
+      [[ -x "$MODEL_HOME/runtime/mlx-serve-v26.11.1/mlx-serve-macos-arm64/mlx-serve" &&
+        "$(/usr/bin/openssl dgst -sha256 "$MODEL_HOME/runtime/mlx-serve-v26.11.1/mlx-serve-macos-arm64/mlx-serve" | awk '{print $NF}')" == 62e3e3fb82f577101a66ac708c3d4925ee4881d91cce08e9b811dafb1ecd7238 ]] &&
+        python3 "$MODELCTL_ROOT/bin/modelctl-verified.py" flash-next-iq "$(model_path "$id")" "$STATE_HOME/verification/qwen38-flash-next-iq.json"
+      ;;
+    deepseek-v4.1-flash-sushi-stq-175)
+      [[ -x "$MODEL_HOME/runtime/sushi-v1.4.0/sushi-macos-arm64/sushi" ]] &&
+        python3 "$MODELCTL_ROOT/bin/modelctl-verified.py" deepseek "$(model_path "$id")" "$STATE_HOME/verification/deepseek41-stq-175.json"
+      ;;
+    deepseek-v4.1-flash-sushi-stq-175-v2)
+      [[ -x "$MODEL_HOME/runtime/sushi-v1.5.0/sushi-macos-arm64/sushi" &&
+        "$(/usr/bin/openssl dgst -sha256 "$MODEL_HOME/runtime/sushi-v1.5.0/sushi-macos-arm64/sushi" | awk '{print $NF}')" == d0c9243c052fe8cf667eb5473e739cf08ca8f70407ad87b1eb283daf2032690f ]] &&
+        python3 "$MODELCTL_ROOT/bin/modelctl-verified.py" deepseek-v2 "$(model_path "$id")" "$STATE_HOME/verification/deepseek41-stq-175-v2.json"
+      ;;
+    qwen3.8-27b-abliterated-oq8e-mtp)
+      [[ -x "$MODEL_HOME/runtime/omlx-eval-20261023/.venv/bin/omlx" ]] &&
+        python3 "$MODELCTL_ROOT/bin/modelctl-verified.py" qwen "$(model_path "$id")" "$STATE_HOME/verification/qwen38-oq8e-mtp.json"
+      ;;
     deepseek-v4.1-flash-maya-xs-64k)
-      # aria2 retains its control file through download/checksum verification.
+      # Block incomplete transfers; checksum verification is a separate step.
       [[ -f "$(model_path "$id")" && ! -e "$(model_path "$id").aria2" &&
         "$(/usr/bin/stat -L -f '%z' "$(model_path "$id")")" == "$DEEPSEEK41_MODEL_BYTES" &&
         -x "$MAYA_DS4_ROOT/ds4-server" &&
@@ -710,20 +736,6 @@ ready() {
         "$(shasum -a 256 "$QWEN_FIXED_TEMPLATE" | awk '{ print $1 }')" == "$QWEN_FIXED_TEMPLATE_SHA256" &&
         -x "$(command -v llama-server 2>/dev/null)" ]]
       ;;
-    qwen3.8-flash-next-iq4-xs)
-      [[ -f "$QWEN38_FLASH_MODEL_DIR/$QWEN38_FLASH_SHARD_1" &&
-        "$(/usr/bin/stat -f '%z' "$QWEN38_FLASH_MODEL_DIR/$QWEN38_FLASH_SHARD_1")" == "10946624" &&
-        -f "$QWEN38_FLASH_MODEL_DIR/$QWEN38_FLASH_SHARD_2" &&
-        "$(/usr/bin/stat -f '%z' "$QWEN38_FLASH_MODEL_DIR/$QWEN38_FLASH_SHARD_2")" == "49835229856" &&
-        -f "$QWEN38_FLASH_MODEL_DIR/$QWEN38_FLASH_SHARD_3" &&
-        "$(/usr/bin/stat -f '%z' "$QWEN38_FLASH_MODEL_DIR/$QWEN38_FLASH_SHARD_3")" == "43836407744" &&
-        -f "$QWEN38_FLASH_MODEL_DIR/$QWEN38_FLASH_MMPROJ" &&
-        "$(/usr/bin/stat -f '%z' "$QWEN38_FLASH_MODEL_DIR/$QWEN38_FLASH_MMPROJ")" == "904004000" &&
-        -x "$QWEN38_FLASH_RUNTIME_ROOT/build-make/bin/llama-server" &&
-        "$(git -C "$QWEN38_FLASH_RUNTIME_ROOT" rev-parse HEAD 2>/dev/null)" == "$QWEN38_FLASH_RUNTIME_COMMIT" &&
-        "$("$QWEN38_FLASH_RUNTIME_ROOT/build-make/bin/llama-server" --version 2>&1 | head -n 1)" == *"commit 9723942ad"* ]] &&
-        git -C "$QWEN38_FLASH_RUNTIME_ROOT" diff --quiet HEAD --
-      ;;
     signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp)
       [[ -f "$SIGNAL38_MODEL_DIR/$SIGNAL38_MODEL" &&
         "$(/usr/bin/stat -f '%z' "$SIGNAL38_MODEL_DIR/$SIGNAL38_MODEL")" == "$SIGNAL38_MODEL_BYTES" &&
@@ -745,9 +757,6 @@ ready() {
         "$(git -C "$GLM53_DS4_ROOT" rev-parse HEAD 2>/dev/null)" == "$GLM53_DS4_COMMIT" ]] &&
         git -C "$GLM53_DS4_ROOT" diff --quiet HEAD -- &&
         make -q -C "$GLM53_DS4_ROOT" ds4-server
-      ;;
-    qwen3.6-35b-a3b)
-      [[ -f "$MODEL_HOME/aliases/qwen3.6-35b-a3b-mlx/config.json" && -x "$MODEL_HOME/runtime/mlx-lm-venv/bin/mlx_lm.server" ]]
       ;;
     qwen3.8-27b-mlxfast-mtp)
       [[ -x "$MODEL_HOME/scripts/qwen38-mlxfast-mtp.sh" ]] &&
@@ -792,9 +801,17 @@ healthy() {
   local service_port
   service_port="$(port "$id")"
   case "$id" in
+    deepseek-v4.1-flash-sushi-stq-175-v2)
+      curl -fsS --max-time 2 "http://127.0.0.1:$service_port/v1/models" 2>/dev/null |
+        jq -e --arg model "$(api_model "$id")" '.data | any(.id == $model and .loaded == true and .state == "ready")' >/dev/null 2>&1
+      ;;
     hy4-flash-q4-k-m)
       curl -fsS --max-time 2 "http://127.0.0.1:$service_port/health" >/dev/null 2>&1 &&
         curl -fsS --max-time 2 "http://127.0.0.1:$service_port/v1/models" 2>/dev/null |
+        jq -e --arg model "$(api_model "$id")" '.data | any(.id == $model)' >/dev/null 2>&1
+      ;;
+    qwen3.8-flash-next-iq-mlx-4.7bpw|deepseek-v4.1-flash-sushi-stq-175|qwen3.8-27b-abliterated-oq8e-mtp)
+      curl -fsS --max-time 2 "http://127.0.0.1:$service_port/v1/models" 2>/dev/null |
         jq -e --arg model "$(api_model "$id")" '.data | any(.id == $model)' >/dev/null 2>&1
       ;;
     strands-decider-2b-v21)
@@ -903,7 +920,7 @@ require_large_model_exclusive() {
     echo "Stop hy4-flash-q4-k-m before starting $id." >&2
     return 1
   fi
-  if [[ "$id" == hy4-flash-q4-k-m || "$id" == deepseek-v4.1-flash-q2-32k || "$id" == deepseek-v4.1-flash-maya-xs-64k || "$id" == mimo-v2.6-flash-sushi-2.3bpw ]]; then
+  if [[ "$id" == hy4-flash-q4-k-m || "$id" == qwen3.8-flash-next-iq-mlx-4.7bpw || "$id" == deepseek-v4.1-flash-sushi-stq-175 || "$id" == deepseek-v4.1-flash-sushi-stq-175-v2 || "$id" == deepseek-v4.1-flash-q2-32k || "$id" == deepseek-v4.1-flash-maya-xs-64k || "$id" == mimo-v2.6-flash-sushi-2.3bpw ]]; then
     while IFS= read -r peer; do
       [[ "$peer" != "$id" && "$(kind "$peer")" == service ]] || continue
       if [[ "$id" == mimo-v2.6-flash-sushi-2.3bpw && "$peer" == strands-decider-2b-v21 ]]; then
@@ -915,13 +932,16 @@ require_large_model_exclusive() {
       fi
     done < <(models)
   elif [[ "$id" == strands-decider-2b-v21 ]]; then
-    for peer in deepseek-v4.1-flash-q2-32k deepseek-v4.1-flash-maya-xs-64k; do
+    for peer in qwen3.8-flash-next-iq-mlx-4.7bpw deepseek-v4.1-flash-sushi-stq-175 deepseek-v4.1-flash-sushi-stq-175-v2 deepseek-v4.1-flash-q2-32k deepseek-v4.1-flash-maya-xs-64k; do
       if service_loaded "$peer" || listening "$peer"; then
         echo "Stop $peer before starting $id." >&2
         return 1
       fi
     done
-  elif service_loaded deepseek-v4.1-flash-q2-32k || listening deepseek-v4.1-flash-q2-32k ||
+  elif service_loaded qwen3.8-flash-next-iq-mlx-4.7bpw || listening qwen3.8-flash-next-iq-mlx-4.7bpw ||
+       service_loaded deepseek-v4.1-flash-sushi-stq-175 || listening deepseek-v4.1-flash-sushi-stq-175 ||
+       service_loaded deepseek-v4.1-flash-sushi-stq-175-v2 || listening deepseek-v4.1-flash-sushi-stq-175-v2 ||
+       service_loaded deepseek-v4.1-flash-q2-32k || listening deepseek-v4.1-flash-q2-32k ||
        service_loaded deepseek-v4.1-flash-maya-xs-64k || listening deepseek-v4.1-flash-maya-xs-64k ||
        service_loaded mimo-v2.6-flash-sushi-2.3bpw || listening mimo-v2.6-flash-sushi-2.3bpw; then
     echo "Stop the active large-model profile before starting $id." >&2
@@ -946,6 +966,38 @@ run_model() {
         --reasoning-format auto --reasoning-effort no_think --jinja --n-predict "$(output_size "$id")" \
         --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-p-min 0 \
         --spec-draft-n-ubatch 256 "$@" --host 127.0.0.1
+      ;;
+    qwen3.8-flash-next-iq-mlx-4.7bpw)
+      exec "$MODEL_HOME/runtime/mlx-serve-v26.11.1/mlx-serve-macos-arm64/mlx-serve" \
+        --model "$(model_path "$id")" --serve --host 127.0.0.1 --port "$(port "$id")" \
+        --ctx-size "$(context_size "$id")" --max-tokens "$(output_size "$id")" \
+        --reasoning-budget 2048 --no-mtp --no-pld --no-plugins "$@"
+      ;;
+    deepseek-v4.1-flash-sushi-stq-175)
+      exec "$MODEL_HOME/runtime/sushi-v1.4.0/sushi-macos-arm64/sushi" serve \
+        --model "$(model_path "$id")" --host 127.0.0.1 --port "$(port "$id")" \
+        --ctx-size "$(context_size "$id")" --max-tokens "$(output_size "$id")" \
+        --ssd-budget-gb 90 --no-vision --no-update-check "$@"
+      ;;
+    deepseek-v4.1-flash-sushi-stq-175-v2)
+      exec "$MODEL_HOME/runtime/sushi-v1.5.0/sushi-macos-arm64/sushi" serve \
+        --model "$(model_path "$id")" --host 127.0.0.1 --port "$(port "$id")" \
+        --ctx-size "$(context_size "$id")" --max-tokens "$(output_size "$id")" \
+        --ssd-budget-gb 90 --no-vision --no-update-check "$@"
+      ;;
+    qwen3.8-27b-abliterated-oq8e-mtp)
+      local qwen_state="$STATE_HOME/omlx/$id"
+      mkdir -p "$qwen_state/model-directory"
+      if [[ -e "$qwen_state/model-directory/qwen-oq8e" || -L "$qwen_state/model-directory/qwen-oq8e" ]]; then
+        [[ "$(readlink "$qwen_state/model-directory/qwen-oq8e")" == "$(model_path "$id")" ]] || { echo "Unexpected Qwen model alias" >&2; return 1; }
+      else
+        ln -s "$(model_path "$id")" "$qwen_state/model-directory/qwen-oq8e"
+      fi
+      cp "$MODELCTL_ROOT/config/qwen-oq8e-omlx-settings.json" "$qwen_state/model_settings.json"
+      exec /usr/bin/env HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \
+        "$MODEL_HOME/runtime/omlx-eval-20261023/.venv/bin/omlx" serve \
+        --model-dir "$qwen_state/model-directory" --host 127.0.0.1 --port "$(port "$id")" \
+        --base-path "$qwen_state" --headless --no-hf-cache --no-cache --max-concurrent-requests 1 "$@"
       ;;
     deepseek-v4.1-flash-maya-xs-64k)
       local kv_dir="$STATE_HOME/kv/$id"
@@ -1046,31 +1098,6 @@ run_model() {
         --image-min-tokens 1024 \
         --chat-template-kwargs '{"reasoning_effort":"medium"}'
       ;;
-    qwen3.8-flash-next-iq4-xs)
-      exec "$QWEN38_FLASH_RUNTIME_ROOT/build-make/bin/llama-server" \
-        --model "$QWEN38_FLASH_MODEL_DIR/$QWEN38_FLASH_SHARD_1" \
-        --mmproj "$QWEN38_FLASH_MODEL_DIR/$QWEN38_FLASH_MMPROJ" \
-        --alias 'qwen3.8-flash-next-iq4-xs' \
-        --gpu-layers all \
-        --fit off \
-        --flash-attn on \
-        --ctx-size 32768 \
-        --parallel 1 \
-        --host 127.0.0.1 \
-        --port 8084 \
-        --cors-origins localhost \
-        --jinja \
-        --temp 1.0 \
-        --top-p 0.95 \
-        --top-k 20 \
-        --min-p 0 \
-        --presence-penalty 0 \
-        --repeat-penalty 1.0 \
-        --reasoning on \
-        --reasoning-preserve \
-        --reasoning-effort medium \
-        --image-min-tokens 1024
-      ;;
     signal-3.8-flash-next-iq4-xs)
       require_signal_variant_peer_stopped "$id"
       exec "$SIGNAL38_RUNTIME_ROOT/$SIGNAL38_RUNTIME_BUILD/bin/llama-server" \
@@ -1102,18 +1129,6 @@ run_model() {
         --image-min-tokens 1024 \
         --spec-type draft-mtp --model-draft "$SIGNAL38_MODEL_DIR/$SIGNAL38_MTP" \
         --spec-draft-n-max 4 --no-spec-draft-backend-sampling
-      ;;
-    qwen3.6-35b-a3b)
-      export HF_HOME="$MODEL_HOME/mlx/qwen/qwen3.6-35b-a3b/hf-home"
-      export HF_HUB_CACHE="$HF_HOME/hub"
-      exec "$MODEL_HOME/runtime/mlx-lm-venv/bin/mlx_lm.server" \
-        --model 'mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit' \
-        --host 127.0.0.1 \
-        --port 8081 \
-        --max-tokens 2048 \
-        --temp 0.6 \
-        --top-p 0.95 \
-        --chat-template-args '{"enable_thinking":false}'
       ;;
     qwen3.8-27b-mlxfast-mtp)
       exec "$MODEL_HOME/scripts/qwen38-mlxfast-mtp.sh" "$@"
@@ -1219,12 +1234,16 @@ status_one() {
 startup_timeout() {
   case "$1" in
     hy4-flash-q4-k-m) echo 300 ;;
+    qwen3.8-flash-next-iq-mlx-4.7bpw) echo 900 ;;
+    deepseek-v4.1-flash-sushi-stq-175) echo 900 ;;
+    deepseek-v4.1-flash-sushi-stq-175-v2) echo 900 ;;
+    qwen3.8-27b-abliterated-oq8e-mtp) echo 600 ;;
     deepseek-v4.1-flash-maya-xs-64k) echo 300 ;;
     strands-decider-2b-v21) echo 180 ;;
     mimo-v2.6-flash-sushi-2.3bpw) echo 900 ;;
     qwen3.8-flash-next-iq2-mtp) echo 180 ;;
     deepseek-v4.1-flash-q2-32k) echo 180 ;;
-    qwen3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp) echo 900 ;;
+    signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp) echo 900 ;;
     qwen3.8-27b-mlxfast-mtp-server) echo 600 ;;
     glm-5.3-flash-q2|glm-5.3-flash-q2-131k) echo 180 ;;
     *) echo 45 ;;
@@ -1286,7 +1305,6 @@ start_model() {
       "DEEPSEEK41_DS4_ROOT=$DEEPSEEK41_DS4_ROOT" \
       "MAYA_DS4_ROOT=$MAYA_DS4_ROOT" \
       "GLM53_DS4_ROOT=$GLM53_DS4_ROOT" \
-      "QWEN38_FLASH_RUNTIME_ROOT=$QWEN38_FLASH_RUNTIME_ROOT" \
       "SIGNAL38_RUNTIME_ROOT=$SIGNAL38_RUNTIME_ROOT" \
       "QWEN38_DS4_ROOT=$QWEN38_DS4_ROOT" \
       "SUSHI_MIMO_RUNTIME_ROOT=$SUSHI_MIMO_RUNTIME_ROOT" \
@@ -1454,33 +1472,6 @@ doctor() {
         echo "Maya-XS model SHA-256 mismatch: $actual_sha256" >&2
         return 1
       fi
-    fi
-    if [[ "$requested_id" == qwen3.8-flash-next-iq4-xs ]]; then
-      local qwen38_flash_checksums
-      qwen38_flash_checksums="$(
-        cd "$QWEN38_FLASH_MODEL_DIR"
-        /usr/bin/shasum -a 256 \
-          "$QWEN38_FLASH_SHARD_1" \
-          "$QWEN38_FLASH_SHARD_2" \
-          "$QWEN38_FLASH_SHARD_3" \
-          "$QWEN38_FLASH_MMPROJ"
-      )"
-      grep -q '^5ce89370720f8bf90890f439361282104c1aa1482d4013bb9a50923e758e71a4 ' <<<"$qwen38_flash_checksums" || {
-        echo "Qwen3.8 Flash Next shard 1 SHA-256 mismatch." >&2
-        return 1
-      }
-      grep -q '^577a38a2392b40ca2193cea502e1d92f60b8cd370675d308e0ec21885d9daaa7 ' <<<"$qwen38_flash_checksums" || {
-        echo "Qwen3.8 Flash Next shard 2 SHA-256 mismatch." >&2
-        return 1
-      }
-      grep -q '^d4634e6d84f0ebb0940be15c90d3790bf6464e3dea3a1cddc567dc0e83ad8833 ' <<<"$qwen38_flash_checksums" || {
-        echo "Qwen3.8 Flash Next shard 3 SHA-256 mismatch." >&2
-        return 1
-      }
-      grep -q '^1f7b7f0b984cf065c604360c29c8098362ed61b290db0ff12c6f360bb1a8a980 ' <<<"$qwen38_flash_checksums" || {
-        echo "Qwen3.8 Flash Next vision projector SHA-256 mismatch." >&2
-        return 1
-      }
     fi
     if [[ "$requested_id" == signal-3.8-flash-next-iq4-xs || "$requested_id" == signal-3.8-flash-next-iq4-xs-mtp ]]; then
       local signal_model_sha256 signal_mmproj_sha256 signal_mtp_sha256

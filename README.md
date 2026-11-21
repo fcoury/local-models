@@ -42,14 +42,11 @@ Available services:
 - `qwen3.8-27b` on port 8080; this is the Qwen Code backend.
 - `qwen3.8-27b-fixed-v22-4` on port 8085; this reuses the Q8 weights with a
   pinned fixed Jinja template for controlled Vibebench comparisons.
-- `qwen3.8-flash-next-iq4-xs` on port 8084; pinned upstream llama.cpp Metal
-  runtime, single-slot 32K qualification profile, and embedded Qwen template.
 - `signal-3.8-flash-next-iq4-xs` on port 8086 and
   `signal-3.8-flash-next-iq4-xs-mtp` on port 8087; mutually exclusive plain and
   MTP profiles for controlled Signal comparisons.
 - `qwen3.8-27b-mlxfast-mtp-server` on port 8083; native MLX.fast MTP for
   OpenAI-compatible clients and `modelbench`.
-- `qwen3.6-35b-a3b` on port 8081.
 - `deepseek-v4.1-flash-maya-xs-64k` on port 8011; text/tools through
   DwarfStar Metal, with sufficient desktop memory headroom.
 - `glm-5.3-flash-q2` on port 8004; text-only DS4 baseline for controlled
@@ -62,6 +59,8 @@ Available services:
 The old `deepseek-v4-flash` Vision-Exp weights and encoder were
 [removed on 2026-10-25](benchmarks/deepseek-v4-retirement.md). Its catalog
 entry and launcher profile were retired; recovery pins remain in that report.
+The older Qwen3.6 OptiQ, Qwen3.8 27B Uncensored MLX and Unsloth Flash Next
+IQ4 bundles were also [removed on 2026-10-25](benchmarks/qwen-model-retirement.md).
 
 Run `modelctl doctor` after moving or updating models. The complete inventory,
 including non-server assets and application-managed models, is in
@@ -206,8 +205,8 @@ modelctl stop qwen3.8-flash-next-iq2-mtp
 
 Weights and the required 32 GB PLE sidecar live in
 `~/models/gguf/qwen/qwen3.8-flash-next-ds4-iq2`; the pinned runtime is
-`~/code/ds4-qwen3.8-flash-next`. This is separate from the Unsloth IQ4 profile
-and has no vision encoder. Run one large model at a time.
+`~/code/ds4-qwen3.8-flash-next`. This text-only profile has no vision encoder.
+Run one large model at a time.
 
 `modelctl doctor qwen3.8-flash-next-iq2-mtp` verifies both full SHA-256 hashes
 as well as runtime readiness. Fish completion discovers the profile automatically.
