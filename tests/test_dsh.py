@@ -15,7 +15,7 @@ spec.loader.exec_module(module)
 with tempfile.TemporaryDirectory() as tmp:
     home = Path(tmp)
     env = dict(os.environ, LOCAL_MODEL_STATE_HOME=tmp)
-    for model in ['deepseek-v4.1-flash-q2-32k', 'deepseek-v4.1-flash-maya-xs-64k', 'qwen3.8-27b']:
+    for model in ['deepseek-v4.1-flash-q2-32k', 'deepseek-v4.1-flash-maya-xs-64k', 'qwen3.8-27b', 'deepseek-v4.1-flash-sushi-stq-175', 'qwen3.8-27b-abliterated-oq8e-mtp']:
         metadata = json.loads(subprocess.check_output([root / 'bin/modelctl', 'endpoint', model, '--json'], env=env))
         target = home / model
         for profile in ['web', 'headless']:
@@ -23,13 +23,17 @@ with tempfile.TemporaryDirectory() as tmp:
             patch = {row['id']: row for row in json.loads((target / f'modelctl-{profile}.patch.yml').read_text()) if 'id' in row}
             if model.startswith('deepseek'):
                 config = patch['llm-deepseek']['config']
-                assert config['thinking'] == 'disabled'
+                assert config['thinking'] == ('enabled' if model == 'deepseek-v4.1-flash-sushi-stq-175' else 'disabled')
                 assert config['models'][0]['contextWindow'] == metadata['context']
                 assert config['maxTokens'] == metadata['output']
+                if model == 'deepseek-v4.1-flash-sushi-stq-175':
+                    assert config['reasoningEffort'] == 'high'
             else:
                 config = patch['llm-pi-ai']['config']['providers']['modelctl-local']
-                assert config['models'][0]['contextWindow'] == 131072
-                assert config['reasoning'] == 'off'
+                assert config['models'][0]['contextWindow'] == metadata['context']
+                assert config['reasoning'] == ('high' if model == 'qwen3.8-27b-abliterated-oq8e-mtp' else 'off')
+                if model == 'qwen3.8-27b-abliterated-oq8e-mtp':
+                    assert config['models'][0]['reasoningEfforts']['high'] == 'medium'
                 assert config['compat']['chatTemplateKwargs']['enable_thinking'] == {'$var': 'thinking.enabled'}
             if profile == 'headless':
                 assert patch['compaction-basic']['config']['retainTokens'] == 4096

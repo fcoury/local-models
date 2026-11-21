@@ -482,10 +482,11 @@ modelctl dsh deepseek-v4.1-flash-maya-xs-64k --prepare headless
 
 ## DeepSeek Harness (PTC)
 
-Build the existing DSH checkout once, and rebuild after updating it:
+The default launcher uses the isolated DSH 0.2.1-rc.3 checkout at
+`~/code/deepseek-harness.codex-modelctl-dsh-rc3`. To rebuild it:
 
 ```bash
-cd ~/code/deepseek-harness
+cd ~/code/deepseek-harness.codex-modelctl-dsh-rc3
 corepack pnpm install --frozen-lockfile
 corepack pnpm run build
 ```
@@ -522,22 +523,29 @@ modelctl dsh qwen3.8-27b
 modelctl dsh deepseek-v4.1-flash-q2-32k headless "Read the project and summarize its entry points."
 ```
 
-Each model gets its own DSH home under
-`~/Library/Application Support/local-models/dsh/MODEL/`. The launcher regenerates
-only `modelctl-web.patch.yml` / `modelctl-headless.patch.yml` and
-`.agent-presets/modelctl-ptc/`; sessions, user settings and other presets persist.
+Each model gets its own DSH 0.2 home under
+`~/Library/Application Support/local-models/dsh-v021/MODEL/`. The launcher regenerates
+only `modelctl-web.patch.yml` / `modelctl-headless.patch.yml`; sessions and user
+settings persist. Earlier DSH 0.1 sessions remain in `dsh/MODEL/` and are not
+automatically migrated. Set `MODELCTL_DSH_ROOT=~/code/deepseek-harness` to use
+the older checkout and its original session home.
 Use `MODELCTL_DSH_ROOT` for another DSH checkout or `MODELCTL_DSH_HOME` for a
 separate experiment. Extra arguments are passed to DSH, e.g. `--port 3081`.
 
-Defaults: upstream PTC coding tools, thinking off, no subagents, web search or skills,
-compaction at 60%, at most 4096 retained tokens and 8192 summary tokens (bounded
+Defaults: upstream PTC coding tools, no subagents, web search or skills;
+Qwen oQ8e MTP uses thinking on by default; Sushi STQ and other profiles use off;
+interactive responses capped at 8192 tokens (or one quarter of context), explicit
+compaction headroom of up to 8192 tokens, compaction at 60%, at most 4096
+retained tokens and 8192 summary tokens (bounded
 by the model's output limit and one quarter of its context). The previous 2048
 summary cap caused repeated truncated checkpoints in a real 32K session.
 Restart DSH to load regenerated defaults; a session already full may need a fresh
 session with a short handoff because summarization also needs context space. Context
 and output limits come from `modelctl endpoint MODEL --json`, so new model
-profiles reuse this path. DeepSeek uses DSH's native adapter; other models use
-its OpenAI-compatible adapter, with Qwen's explicit `enable_thinking: false`.
+profiles reuse this path. DSH 0.2 routes DeepSeek through its native Messages
+API adapter; other models use its OpenAI-compatible adapter. Qwen passes an
+explicit `enable_thinking` setting. Sushi STQ thinking off was live-tested over
+Messages; other runtime combinations require their own live validation.
 Model-specific tool protocol and coding quality still need a live check before
 calling a new model qualified. Copy the generated preset under a new name to
 customize it; don't edit generated files. Saved DSH model settings override the
@@ -548,3 +556,72 @@ Offline regression check (no model needed):
 ```bash
 PYTHONDONTWRITEBYTECODE=1 python3 tests/test_dsh.py
 ```
+
+### Start the two leading evaluated models with DSH
+
+Run these from the project you want DSH to work on. Start only one model at a
+time. The DSH command opens its local web interface; use `--no-open` to print
+its address without opening a browser.
+
+```sh
+# DeepSeek V4.1 Flash 1017, Sushi STQ 1.75bpw (90 GiB resident budget)
+modelctl start deepseek-v4.1-flash-sushi-stq-175
+modelctl dsh deepseek-v4.1-flash-sushi-stq-175
+modelctl stop deepseek-v4.1-flash-sushi-stq-175
+
+# Qwen3.8 27B abliterated oQ8e, oMLX with MTP depth 3
+modelctl start qwen3.8-27b-abliterated-oq8e-mtp
+modelctl dsh qwen3.8-27b-abliterated-oq8e-mtp
+modelctl stop qwen3.8-27b-abliterated-oq8e-mtp
+```
+
+`modelctl status ID` reports server state. DSH is a separate foreground process:
+stop it with Ctrl-C when finished. DeepSeek uses 64K context and Sushi's normal
+memory preflight; its 90 GiB budget can still be rejected if other applications
+consume too much memory. Qwen uses 64K context and an isolated oMLX configuration.
+Each profile checks its retained verification receipt and file sizes before
+loading; this does not repeat the full weight checksum. Profiles use the local
+runtimes and verification receipts described in the evaluation reports.
+
+### DeepSeek STQ revision 2.0 candidate
+
+`deepseek-v4.1-flash-sushi-stq-175-v2` uses the verified revision 2.0 pack
+with its separate Sushi 1.5.0 runtime on localhost port 18352. Both revisions
+use 1.75 average bits per routed-expert weight; 1.5.0 is the runtime version.
+The original profile/runtime remain on port 18351. Start only one large model.
+
+```sh
+modelctl start deepseek-v4.1-flash-sushi-stq-175-v2
+modelctl stop deepseek-v4.1-flash-sushi-stq-175-v2
+```
+
+The new profile keeps 64K context, a 90 GiB streaming target, DSpark, no vision
+and normal memory preflight. It checks the pinned verification receipt and
+runtime binary, then waits for actual loaded/ready state. The full 30-exercise
+Aider Rust comparison is complete; live DSH qualification remains separate.
+Its first startup spent about five minutes warming kernels; a later measured
+restart took 22 seconds. The report and repeatable protocol are in the retained
+`local-models.codex-rust-eval-standard` worktree under
+`benchmarks/rust-coding/aider-full.md` and `AIDER-FULL-v0.1.md`.
+
+### Qwen3.8 Flash Next iQ-MLX 4.7bpw (verified and evaluated)
+
+The calibrated pack and isolated mlx-serve 26.11.1 runtime are verified on disk.
+Local hosting, native thinking-off completions and the full Aider Rust suite
+have now been verified. The initial ARC4NUM memory-preflight refusal is retained
+as historical preparation evidence. The current evaluated profile is below;
+the comparison leaves older-pack retention unchanged. See the
+[findings index](benchmarks/README.md) for the completed comparison and
+[initial preparation](benchmarks/qwen38-iq-mlxserve.md) for its earlier limits.
+
+When ready to resume, run the model in the foreground:
+
+```sh
+modelctl run qwen3.8-flash-next-iq-mlx-4.7bpw
+```
+
+The server binds localhost port 18434, uses 64K context and a 2048-token
+reasoning budget, and defaults MTP/PLD off. The
+[evaluation recipe](benchmarks/flash-next-mlxserve/README.md) prepares API/tool
+checks and the existing six-task Rust/TypeScript suite. No model starts simply
+from reading status or preparing DSH configuration.

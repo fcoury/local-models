@@ -23,13 +23,15 @@ def prepare(root, home, profile, model):
                       maxTokens=min(8192, output, context // 4))
     catalog = dict(id=model['api_model'], name=model['id'], contextWindow=context, maxTokens=output)
     deepseek = model['api_model'].startswith('deepseek-')
+    evaluated_deepseek = model['id'] == 'deepseek-v4.1-flash-sushi-stq-175'
+    evaluated_qwen = model['id'] == 'qwen3.8-27b-abliterated-oq8e-mtp'
     provider = 'deepseek-official' if deepseek else 'modelctl-local'
     patch = [dict(id='agent-default-model', config=dict(provider=provider, model=model['api_model'])),
              dict(id='session-title-llm', disabled=True)]
     if deepseek:
         patch += [dict(id='llm-pi-ai', disabled=True), dict(id='llm-deepseek', config=dict(
-            apiKeyEnv='MODELCTL_DSH_API_KEY', baseURL=model['base_url'], thinking='disabled',
-            reasoningEffort='off', maxTokens=output, defaultContextWindow=context,
+            apiKeyEnv='MODELCTL_DSH_API_KEY', baseURL=model['base_url'], thinking='enabled' if evaluated_deepseek else 'disabled',
+            reasoningEffort='high' if evaluated_deepseek else 'off', maxTokens=output, defaultContextWindow=context,
             models=[dict(catalog, inputModalities=['text'])]))]
     else:
         qwen = model['id'].startswith('qwen')
@@ -38,8 +40,8 @@ def prepare(root, home, profile, model):
         if qwen:
             compat['chatTemplateKwargs'] = dict(enable_thinking={'$var': 'thinking.enabled'})
         route = dict(apiKeyEnv='MODELCTL_DSH_API_KEY', api='openai-completions',
-                     baseURL=model['base_url'], reasoning='off', compat=compat,
-                     models=[dict(catalog, input=['text'], reasoningEfforts={'off': None if qwen else 'none', 'high': 'high'})])
+                     baseURL=model['base_url'], reasoning='high' if evaluated_qwen else 'off', compat=compat,
+                     models=[dict(catalog, input=['text'], reasoningEfforts={'off': None if qwen else 'none', 'high': 'medium' if evaluated_qwen else 'high'})])
         patch += [dict(id='llm-deepseek', disabled=True),
                   dict(id='llm-pi-ai', config=dict(providers={provider: route}))]
     # Reuse upstream PTC, including its sandbox/approval policies. Fail on layout drift.
@@ -69,7 +71,7 @@ def prepare(root, home, profile, model):
     target.mkdir(parents=True, exist_ok=True)
     # These files are generated; user settings, sessions and copied presets are untouched.
     for path, contents in (
-        (target / 'preset.yml', 'name: Local PTC\ndescription: PTC coding tools, thinking off, no delegation, web search or skills\norder: 0\n'),
+        (target / 'preset.yml', 'name: Local PTC\ndescription: PTC coding tools, no delegation, web search or skills\norder: 0\n'),
         (target / 'agent.cordis.yml', preset),
         (home / f'modelctl-{profile}.patch.yml', json.dumps(patch, indent=2) + '\n'),
     ):

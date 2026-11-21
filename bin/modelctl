@@ -567,9 +567,15 @@ run_dsh() {
   local prepare=false profile=web
   if [[ "${1:-}" == --prepare ]]; then prepare=true; shift; fi
   if [[ "${1:-}" == web || "${1:-}" == headless ]]; then profile="$1"; shift; fi
-  local dsh_root="${MODELCTL_DSH_ROOT:-$HOME/code/deepseek-harness}"
-  local dsh_home="${MODELCTL_DSH_HOME:-$STATE_HOME/dsh/$id}"
-  local helper metadata
+  local dsh_root="${MODELCTL_DSH_ROOT:-$HOME/code/deepseek-harness.codex-modelctl-dsh-rc3}"
+  local dsh_home helper metadata
+  if [[ -f "$dsh_root/packages/bundle/web-app/presets/ptc.patch.yml" ]]; then
+    dsh_home="${MODELCTL_DSH_HOME:-$STATE_HOME/dsh-v021/$id}"
+    helper="$MODELCTL_ROOT/bin/modelctl-dsh-v2.py"
+  else
+    dsh_home="${MODELCTL_DSH_HOME:-$STATE_HOME/dsh/$id}"
+    helper="$MODELCTL_ROOT/bin/modelctl-dsh.py"
+  fi
   command -v node >/dev/null && command -v python3 >/dev/null || {
     echo "Node and Python 3 are required for modelctl dsh." >&2; return 1;
   }
@@ -577,7 +583,6 @@ run_dsh() {
     echo "Build DSH first: cd \"$dsh_root\" && corepack pnpm install --frozen-lockfile && corepack pnpm build" >&2
     return 1
   }
-  helper="$(python3 -c 'import pathlib, sys; print(pathlib.Path(sys.argv[1]).resolve().with_name("modelctl-dsh.py"))' "${BASH_SOURCE[0]}")"
   metadata="$(endpoint "$id" --json)"
   printf '%s\n' "$metadata" | python3 "$helper" "$dsh_root" "$dsh_home" "$profile"
   if [[ "$prepare" == true ]]; then
