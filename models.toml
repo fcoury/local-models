@@ -392,6 +392,7 @@ notes = "90 GiB resident budget, DSpark, no vision; verify memory preflight."
 
 [[models]]
 id = "deepseek-v4.1-flash-sushi-stq-175-v2"
+alias = "deepseek"
 name = "DeepSeek V4.1 Flash 1017 Sushi STQ 1.75bpw revision 2.0"
 format = "Sushi STQ safetensors"
 runner = "Sushi 1.5.0"
@@ -431,6 +432,7 @@ notes = "Fixed MTP depth 3; isolated settings with preserved thinking."
 
 [[models]]
 id = "qwen3.8-flash-next-iq-mlx-4.7bpw"
+alias = "flash"
 name = "Qwen3.8 Flash Next iQ-MLX 4.7bpw"
 format = "mlx-serve calibrated 4-bit experts and 8-bit rest"
 runner = "mlx-serve 26.11.1"
@@ -470,3 +472,49 @@ vision = false
 mtp = true
 consumer = "OpenCode"
 notes = "Verified two-shard bundle; 64K, one slot, text only, MTP depth 2, native no_think default."
+
+# Profiles with a [models.launch] table are started by modelctl from this data.
+# The others are catalog entries; bin/modelctl-legacy owns their launch settings.
+[[models]]
+id = "qwen3.8-flash-next-ud-q4-k-xl"
+alias = "flash-ud"
+name = "Qwen3.8 Flash Next UD-Q4_K_XL 64K (llama.cpp)"
+format = "Split GGUF"
+runner = "llama.cpp"
+path = "gguf/qwen/qwen3.8-flash-next-ud-q4-k-xl-f5d175de/Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf"
+port = 8089
+context = 65536
+output = 16384
+status = "evaluating"
+api_model = "qwen3.8-flash-next-ud"
+bytes = 112242197722
+manifest = "manifests/qwen3.8-flash-next-ud-q4-k-xl.json"
+source = "unsloth/Qwen3.8-Flash-Next-GGUF"
+source_revision = "f5d175de2cf7f720d45d6064019a81fcf056e986"
+runtime_path = "runtime/llama.cpp-b12359-b1b770d90/source/build/bin/llama-server"
+runtime_commit = "b1b770d90d94cad9e9ea5b993bdbc383a522fb28"
+runtime_sha256 = "b941e89e58b4ad6e1156ccb287934bf045e170d7ac07965279864bbddb09fcc3"
+quantization = "UD-Q4_K_XL"
+vision = true
+mtp = false
+consumer = "Pi, OMP, and OpenAI-compatible clients"
+notes = "Static Metal build of llama.cpp b12359. context is per slot: two isolated slots keep one request from exhausting another's KV cache. Not yet compared with the iQ-MLX build."
+
+[models.launch]
+engine = "llama.cpp"
+slots = 2
+memory_gib = 83
+startup_timeout = 600
+mmproj = "gguf/qwen/qwen3.8-flash-next-ud-q4-k-xl-f5d175de/mmproj-BF16.gguf"
+args = [
+  "--no-kv-unified", "-lm", "mmap", "--lazy-mode", "on", "--jinja",
+  "--temp", "1.0", "--top-p", "0.95", "--top-k", "20", "--min-p", "0",
+  "--chat-template-kwargs", '{"reasoning_effort":"medium"}',
+]
+
+[models.harness]
+supported = ["omp", "pi"]
+thinking = ["low", "medium", "xhigh"]
+thinking_default = "medium"
+reserve_tokens = 16384
+keep_recent_tokens = 8192

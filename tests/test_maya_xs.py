@@ -7,9 +7,9 @@ import subprocess
 import tempfile
 
 root = Path(__file__).resolve().parents[1]
-source = (root / 'bin/modelctl').read_text().split('command_name="${1:-}"')[0]
+source = (root / 'bin/modelctl-legacy').read_text().split('command_name="${1:-}"')[0]
 source = source.replace('MODELCTL_SOURCE="${BASH_SOURCE[0]}"',
-                        f'MODELCTL_SOURCE="{root / "bin/modelctl"}"')
+                        f'MODELCTL_SOURCE="{root / "bin/modelctl-legacy"}"')
 model = 'deepseek-v4.1-flash-maya-xs-64k'
 with tempfile.TemporaryDirectory() as temp:
     env = dict(os.environ, LOCAL_MODEL_STATE_HOME=temp, MODELCTL_OMP_AGENT_DIR=temp,

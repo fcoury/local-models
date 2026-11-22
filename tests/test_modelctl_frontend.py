@@ -1,0 +1,198 @@
+#!/usr/bin/env python3
+"""Offline checks for the modelctl front end. No model is loaded or service touched."""
+import importlib.machinery
+import importlib.util
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+
+ROOT = Path(__file__).resolve().parents[1]
+MODEL = 'qwen3.8-flash-next-ud-q4-k-xl'
+sys.dont_write_bytecode = True
+
+with tempfile.TemporaryDirectory() as temp:
+    temp = Path(temp).resolve()
+    store, state, project = temp / 'models', temp / 'state', temp / 'project'
+    for folder in (store, state, project):
+        folder.mkdir()
+    env = dict(os.environ, LOCAL_MODEL_STATE_HOME=str(state), NO_COLOR='1')
+
+    def run(*args, script='modelctl', cwd=project, **extra):
+        return subprocess.run([ROOT / 'bin' / script, *args], cwd=cwd, env=dict(env, **extra),
+                              capture_output=True, text=True, stdin=subprocess.DEVNULL)
+
+    # Legacy profiles: identical output and exit codes through the front end.
+    ids = [l.split('\t')[0] for l in run('__complete', 'all', script='modelctl-legacy').stdout.splitlines()]
+    assert len(ids) == 29
+    for model in ids:
+        for args in (['path', model], ['endpoint', model], ['endpoint', model, '--json'],
+                     ['endpoint', model, '--bogus']):
+            old, new = run(*args, script='modelctl-legacy'), run(*args)
+            assert (old.returncode, old.stdout, old.stderr) == (new.returncode, new.stdout, new.stderr), args
+    for scope in ('all', 'models', 'runnable', 'services', 'omp'):
+        old = run('__complete', scope, script='modelctl-legacy').stdout
+        new = run('__complete', scope).stdout
+        assert new.startswith(old) and new[len(old):].split('\t')[0] == MODEL, scope
+    assert run('__complete', 'bogus').returncode == 2
+    assert [l.split('\t')[0] for l in run('__names', 'pi').stdout.splitlines()] == [MODEL, 'flash-ud']
+    names = [l.split('\t')[0] for l in run('__names', 'services').stdout.splitlines()]
+    assert {'flash', 'flash-ud', 'deepseek', MODEL} <= set(names)
+
+    # Aliases resolve everywhere; mistakes get a suggestion and the old exit code.
+    assert run('path', 'flash').stdout == run('path', 'qwen3.8-flash-next-iq-mlx-4.7bpw').stdout
+    assert json.loads(run('endpoint', 'flash-ud', '--json').stdout) == dict(
+        id=MODEL, base_url='http://127.0.0.1:8089/v1', api_model='qwen3.8-flash-next-ud',
+        context=65536, output=16384)
+    typo = run('start', 'flsh')
+    assert typo.returncode == 2 and 'Unknown model: flsh. Did you mean flash' in typo.stderr
+    for args in (['bogus'], ['start'], ['use'], ['use', 'vim', 'flash-ud'], ['list', 'extra'],
+                 ['use', 'pi', 'flash'], ['dsh', 'flash-ud'], ['stop', 'minimax-music3']):
+        result = run(*args)
+        assert result.returncode == 2 and 'Traceback' not in result.stderr, (args, result)
+
+    # modelbench reads the first two columns of piped status.
+    row = run('status', MODEL).stdout.split()
+    assert row[0] == MODEL and row[1] in ('running', 'stopped', 'external', 'unverified'), row
+    rows = json.loads(run('list', '--json').stdout)
+    assert len(rows) == 30 and len({r['name'] for r in rows}) == 30
+
+    # Load the module against a tiny fake store to test verification and generated config.
+    files = []
+    folder = store / 'gguf/m'
+    folder.mkdir(parents=True)
+    for name, body in (('a.gguf', b'weights'), ('mmproj.gguf', b'eyes')):
+        (folder / name).write_bytes(body)
+        import hashlib
+        files.append(dict(path=name, size=len(body), sha256=hashlib.sha256(body).hexdigest()))
+    binary = store / 'runtime/llama-server'
+    binary.parent.mkdir()
+    binary.write_bytes(b'runtime')
+    binary.chmod(0o755)
+    manifest = temp / 'manifest.json'
+    manifest.write_text(json.dumps(dict(revision='r' * 40, files=files)))
+    home = temp / 'home'
+    (home / '.omp/agent/extensions').mkdir(parents=True)
+    (home / '.pi/agent').mkdir(parents=True)
+    (home / '.pi/agent/settings.json').write_text('{"theme": "dark", "defaultProvider": "strata"}')
+    os.environ.update(MODEL_HOME=str(store), LOCAL_MODEL_STATE_HOME=str(state), HOME=str(home))
+    loader = importlib.machinery.SourceFileLoader('modelctl', str(ROOT / 'bin/modelctl'))
+    spec = importlib.util.spec_from_loader('modelctl', loader)
+    ctl = importlib.util.module_from_spec(spec)
+    loader.exec_module(ctl)
+    ctl.Out.quiet = True
+    entry = next(m for m in ctl.tomllib.loads((ROOT / 'models.toml').read_text())['models'] if m['id'] == MODEL)
+    real = ctl.Model(entry)
+    command = real.command()
+    assert command[command.index('--ctx-size') + 1] == '131072'
+    assert command[command.index('--parallel') + 1] == '2' and '--no-kv-unified' in command
+    assert json.loads(command[-1]) == {'reasoning_effort': 'medium'}
+    assert sum(f['size'] for f in real.manifest['files']) == entry['bytes']
+    model = ctl.Model(dict(entry, path='gguf/m/a.gguf', manifest=str(manifest),
+                           runtime_path='runtime/llama-server',
+                           runtime_sha256=hashlib.sha256(b'runtime').hexdigest()))
+
+    def refused(message):
+        try:
+            ctl.verify(model)
+        except ctl.Failure as error:
+            assert message in str(error), error
+        else:
+            raise AssertionError('accepted: ' + message)
+
+    refused('has not been verified')
+    ctl.doctor(model)
+    ctl.verify(model)
+    (folder / 'a.gguf.aria2').touch()
+    refused('incomplete transfer')
+    (folder / 'a.gguf.aria2').unlink()
+    (folder / 'a.gguf').write_bytes(b'wEights')       # same size, different content
+    refused('has not been verified')
+    try:
+        ctl.doctor(model)
+    except ctl.Failure as error:
+        assert 'SHA-256 mismatch' in str(error)
+    else:
+        raise AssertionError('doctor accepted changed weights')
+    assert not model.receipt.exists()
+    (folder / 'a.gguf').write_bytes(b'weights')
+    ctl.doctor(model)
+    binary.write_bytes(b'rebuilt')
+    refused('runtime does not match')
+
+    # Harness configs: isolated, per model, and never written to the user's own directories.
+    omp_home, omp, level = ctl.prepare_omp(model)
+    config = json.loads((omp_home / 'models.yml').read_text())['providers']['modelctl-flash-ud']
+    assert config['models'][0]['compat']['reasoningDisableMode'] == 'none-effort'
+    assert config['models'][0]['compat']['thinkingFormat'] == 'openai' and level == 'medium'
+    assert (omp_home / 'extensions').is_symlink()
+    pi_home, pi, _ = ctl.prepare_pi(model)
+    levels = json.loads((pi_home / 'models.json').read_text())['providers']['modelctl']['models'][0]['thinkingLevelMap']
+    assert levels == dict(off='none', minimal=None, low='low', medium='medium', high=None, xhigh='xhigh', max=None)
+    settings = json.loads((pi_home / 'settings.json').read_text())
+    assert settings['theme'] == 'dark' and settings['defaultProvider'] == 'modelctl'
+    (pi_home / 'settings.json').write_text(json.dumps(dict(settings, theme='mine', defaultThinkingLevel='low')))
+    ctl.prepare_pi(model)
+    settings = json.loads((pi_home / 'settings.json').read_text())
+    assert settings['theme'] == 'mine' and settings['defaultThinkingLevel'] == 'low'
+    assert json.loads((home / '.pi/agent/settings.json').read_text())['defaultProvider'] == 'strata'
+    assert omp_home != pi_home and str(omp_home).startswith(str(state))
+
+    # Harnesses are refused inside the model store, including through a symlink.
+    link = temp / 'link'
+    link.symlink_to(store)
+    for place in (store, folder, link / 'gguf'):
+        os.chdir(place)
+        try:
+            ctl.check_directory()
+        except ctl.Failure:
+            pass
+        else:
+            raise AssertionError(f'harness allowed in {place}')
+    os.chdir(project)
+    ctl.check_directory()
+
+    # Guardrails, with process state supplied instead of read from the machine.
+    class Fake:
+        services, ports, servers = {}, {}, []
+
+        def unmanaged(self):
+            return self.servers
+
+    class Shelf:
+        models = [model]
+    fake = Fake()
+    ctl.check_exclusive(model, Shelf, fake)
+    big = dict(pid=1, port=9931, rss=40 * ctl.GIB, command='llama-server')
+    fake.servers = [big]
+    for force, blocked in ((False, True), (True, False)):
+        try:
+            ctl.check_exclusive(model, Shelf, fake, force)
+        except ctl.Failure:
+            assert blocked
+        else:
+            assert not blocked
+    fake.servers = [dict(big, rss=ctl.GIB)]
+    ctl.check_exclusive(model, Shelf, fake)
+    legacy = ctl.Model({'id': 'other', 'alias': 'other'}, ['other', 'Other', 'service', '1', 'o', '', '', '/x'])
+    Shelf.models, fake.servers, fake.ports = [model, legacy], [], {model.port: 5}
+    try:
+        ctl.check_exclusive(legacy, Shelf, fake)
+    except ctl.Failure as error:
+        assert 'flash-ud' in str(error)
+    else:
+        raise AssertionError('second large model allowed')
+
+    for args, expected in (('/opt/homebrew/bin/llama-server -m x', True), ('llama-server -hf a/b', True),
+                           ('/a/venv/bin/python /a/venv/bin/omlx serve', True),
+                           ('/a/Python.app/Contents/MacOS/Python /a/venv/bin/omlx serve', True),
+                           ('/x/sushi-macos-arm64/sushi serve --model y', True),
+                           ('vim notes/sushi', False), ('node server.js', False),
+                           ('rg llama-server', False), ('python3 -m http.server 8000', False)):
+        assert bool(ctl.is_model_server(args)) == expected, args
+    for text, expected in (('01:02', 62), ('02:00:00', 7200), ('1-00:00:01', 86401)):
+        assert ctl.seconds(text) == expected
+
+print('modelctl front end checks passed (no inference)')

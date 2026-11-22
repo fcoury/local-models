@@ -1,1640 +1,1251 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-MODEL_HOME="${MODEL_HOME:-$HOME/models}"
-MODELCTL_SOURCE="${BASH_SOURCE[0]}"
-while [[ -L "$MODELCTL_SOURCE" ]]; do
-  MODELCTL_SOURCE_DIR="$(cd "$(dirname "$MODELCTL_SOURCE")" && pwd)"
-  MODELCTL_SOURCE="$(readlink "$MODELCTL_SOURCE")"
-  [[ "$MODELCTL_SOURCE" == /* ]] || MODELCTL_SOURCE="$MODELCTL_SOURCE_DIR/$MODELCTL_SOURCE"
-done
-MODELCTL_ROOT="$(cd "$(dirname "$MODELCTL_SOURCE")/.." && pwd)"
-STATE_HOME="${LOCAL_MODEL_STATE_HOME:-$HOME/Library/Application Support/local-models}"
-LOG_DIR="$STATE_HOME/logs"
-PID_DIR="$STATE_HOME/pids"
-OMP_AGENT_DIR="${MODELCTL_OMP_AGENT_DIR:-$STATE_HOME/omp-agent}"
-MUSE_GLIMMER_HARNESS_REPO="${MUSE_GLIMMER_HARNESS_REPO:-$HOME/code/meta-oss-cookbook}"
-MUSE_GLIMMER_HARNESS_DIR="$MUSE_GLIMMER_HARNESS_REPO/agentic-fundamentals"
-MUSE_GLIMMER_HARNESS_VENV="${MUSE_GLIMMER_HARNESS_VENV:-$MODEL_HOME/runtime/muse-glimmer-harness-venv}"
-QWEN_FIXED_TEMPLATE="$MODEL_HOME/templates/qwen3.8/froggeric-v22.4.jinja"
-QWEN_FIXED_TEMPLATE_SHA256="696c4f110ae05f349f381b9c7f3ef40172adc369e918f18738fec0036d14fc7b"
-SIGNAL38_MODEL_DIR="$MODEL_HOME/gguf/qwen/signal-3.8-flash-next-ap-iq4-xs"
-SIGNAL38_MODEL="Signal-3.8-Flash-Next-AP-IQ4_XS.gguf"
-SIGNAL38_MMPROJ="mmproj-F16.gguf"
-SIGNAL38_MTP="Qwen3.8-Flash-Next-MTP-Q8_0.gguf"
-SIGNAL38_MODEL_BYTES="90447294816"
-SIGNAL38_MMPROJ_BYTES="904004128"
-SIGNAL38_MTP_BYTES="4135893376"
-SIGNAL38_MODEL_SHA256="7fadb6b29035377204aed0d0085d3f58cc65fc7b4c3aa79f8f3f84fdfc304529"
-SIGNAL38_MMPROJ_SHA256="f456cd796fdbdef0cadb22710b54e0071b6cdf22c07963365baa898267aec517"
-SIGNAL38_MTP_SHA256="04f6521d237acdfcc1eec0211b61b22705ed7564e6097b1d664c358aac857eda"
-SIGNAL38_RUNTIME_ROOT="${SIGNAL38_RUNTIME_ROOT:-$HOME/code/llama.cpp-signal38}"
-SIGNAL38_RUNTIME_COMMIT="de39c1db9efb6bc8c94a2db4afa4607398c84998"
-SIGNAL38_RUNTIME_BUILD="build-signal-mtp"
-SIGNAL38_RUNTIME_PATCH="$MODELCTL_ROOT/compat/llama-signal38-macos.patch"
-DEEPSEEK41_DS4_ROOT="${DEEPSEEK41_DS4_ROOT:-$HOME/code/ds4-deepseek-v4.1-flash}"
-DEEPSEEK41_DS4_COMMIT="fc80bd695da76ee14bcb86820bf900a5cdfda806"
-DEEPSEEK41_MODEL_BYTES="365713686528"
-DEEPSEEK41_MODEL_SHA256="5296e85ff64b42ecb62c8d0c0c54e1caa07e3df8e93112f2365ebbaed62ce93a"
-MAYA_DS4_ROOT="${MAYA_DS4_ROOT:-$HOME/code/ds4-maya-xs}"
-MAYA_DS4_COMMIT="0dff39f91721bcf3472813c6d2bebf9353df2a1a"
-MAYA_MODEL_SHA256="f414995b3797f77009634fac995f50834e70393771f9423fca984c892503b42a"
-QWEN38_DS4_ROOT="${QWEN38_DS4_ROOT:-$HOME/code/ds4-qwen3.8-flash-next}"
-QWEN38_DS4_COMMIT="ffd85d426313ace6dae805e9f2fb4424d5b427fd"
-QWEN38_DS4_MODEL_DIR="$MODEL_HOME/gguf/qwen/qwen3.8-flash-next-ds4-iq2"
-QWEN38_DS4_MODEL="Qwen3.8-Flash-Next-IQ2XXSImatrix-MXFP4Down-MTP.gguf"
-QWEN38_DS4_PLE="Qwen3.8-Flash-Next-PLE-Q4_1.gguf"
-SUSHI_MIMO_MODEL_DIR="$MODEL_HOME/sushi/mimo-v2.6-flash-2.3bpw"
-SUSHI_MIMO_RUNTIME_ROOT="${SUSHI_MIMO_RUNTIME_ROOT:-$MODEL_HOME/runtime/sushi-v1.2.1/sushi-macos-arm64}"
-SUSHI_MIMO_MANIFEST="$MODELCTL_ROOT/manifests/mimo-v2.6-flash-sushi-2.3bpw.json"
-STRANDS_DECIDER_DIR="$MODEL_HOME/llm/strands/strands-decider-2b-hobson-v21"
-STRANDS_DECIDER_BASE_DIR="$MODEL_HOME/llm/qwen/qwen3.5-2b-base"
-STRANDS_DECIDER_SOURCE="${STRANDS_DECIDER_SOURCE:-$HOME/code/strands-decider}"
-STRANDS_DECIDER_VENV="${STRANDS_DECIDER_VENV:-$MODEL_HOME/runtime/strands-decider-v21-venv}"
-STRANDS_DECIDER_REVISION="3e94e9d84c620ed5a95f1a3310c3decb971e261c"
-STRANDS_DECIDER_BASE_REVISION="b1485b2fa6dfa1287294f269f5fb618e03d52d7c"
-STRANDS_DECIDER_MANIFEST="$MODELCTL_ROOT/manifests/strands-decider-v21.json"
-STRANDS_DECIDER_HF_SNAPSHOT="$MODEL_HOME/cache/huggingface/hub/models--Qwen--Qwen3.5-2B-Base/snapshots/$STRANDS_DECIDER_BASE_REVISION"
-STRANDS_DECIDER_HF_TREE="$MODEL_HOME/cache/huggingface/hub/models--Qwen--Qwen3.5-2B-Base/trees/$STRANDS_DECIDER_BASE_REVISION.json"
-GLM53_DS4_ROOT="${GLM53_DS4_ROOT:-$HOME/code/ds4-glm-5.3-flash}"
-GLM53_DS4_COMMIT="a3db66feefb624585277c33261c52e6521e76421"
-GLM53_MODEL_BYTES="96505816384"
-GLM53_MODEL_SHA256="e81fd6241c6e55a64e1e14e47a3eab61a173fa8d7e4b5c1d1848827119705b32"
-
-HY4_MODEL_DIR="$MODEL_HOME/gguf/tencent/hy4-flash-q4-k-m-bcbc7db"
-HY4_RUNTIME="$MODEL_HOME/runtime/hy4-flash-angelslim-bcbc7db/source/build/bin/llama-server"
-HY4_RECEIPT="$STATE_HOME/benchmarks/hy4-flash-q4-k-m/verification.json"
-HY4_RUNTIME_SHA256="3cd99f67b77f82fe98176e959cd3b633f1980347ec81b142e16633077248e04b"
-
-if [[ "${1:-}" != __complete ]]; then
-  mkdir -p "$LOG_DIR" "$PID_DIR"
-fi
-
-models() {
-  cat <<'EOF'
-hy4-flash-q4-k-m
-qwen3.8-flash-next-iq-mlx-4.7bpw
-qwen3.8-27b-abliterated-oq8e-mtp
-deepseek-v4.1-flash-sushi-stq-175
-deepseek-v4.1-flash-sushi-stq-175-v2
-qwen3.8-27b
-qwen3.8-27b-fixed-v22-4
-qwen3.8-flash-next-iq2-mtp
-mimo-v2.6-flash-sushi-2.3bpw
-strands-decider-2b-v21
-signal-3.8-flash-next-iq4-xs
-signal-3.8-flash-next-iq4-xs-mtp
-qwen3.8-27b-mlxfast-mtp
-qwen3.8-27b-mlxfast-mtp-server
-deepseek-v4.1-flash-q2-32k
-deepseek-v4.1-flash-maya-xs-64k
-glm-5.3-flash-q2
-glm-5.3-flash-q2-131k
-minimax-h3-standard
-minimax-h3-heretic
-minimax-h3-comfy
-minimax-h3-bf16
-minimax-music3
-mererun-ltx-2.3
-mererun-qwen3-coder-next
-mererun-gemma-3-12b
-mererun-z-image-turbo
-muse-glimmer-30b
-muse-glimmer-30b-server
-EOF
-}
-
-completion_models() {
-  local scope="${1:-all}"
-  local id
-  local model_kind
-
-  while IFS= read -r id; do
-    model_kind="$(kind "$id")"
-    case "$scope" in
-      all|models)
-        ;;
-      runnable)
-        [[ "$model_kind" == service || "$model_kind" == harness ]] || continue
-        ;;
-      services)
-        [[ "$model_kind" == service ]] || continue
-        ;;
-      omp)
-        [[ "$model_kind" == service ]] || continue
-        omp_family "$id" >/dev/null 2>&1 || continue
-        ;;
-      *)
-        return 2
-        ;;
-    esac
-    printf '%s\t%s\n' "$id" "$(label "$id")"
-  done < <(models)
-}
-
-label() {
-  case "$1" in
-    hy4-flash-q4-k-m) echo "Hy4 Flash AngelSlim Q4_K_M (64K, MTP)" ;;
-    qwen3.8-flash-next-iq-mlx-4.7bpw) echo "Qwen3.8 Flash Next iQ-MLX 4.7bpw 64K (mlx-serve)" ;;
-    deepseek-v4.1-flash-sushi-stq-175) echo "DeepSeek V4.1 Flash Sushi STQ 1.75bpw (90 GiB)" ;;
-    deepseek-v4.1-flash-sushi-stq-175-v2) echo "DeepSeek V4.1 Flash Sushi STQ 1.75bpw revision 2 (90 GiB)" ;;
-    qwen3.8-27b-abliterated-oq8e-mtp) echo "Qwen3.8 27B Abliterated oQ8e MTP (oMLX)" ;;
-    deepseek-v4.1-flash-maya-xs-64k) echo "DeepSeek V4.1 Flash 1017 Maya-XS Abliterated 64K (DwarfStar Metal)" ;;
-    qwen3.8-flash-next-iq2-mtp) echo "Qwen3.8 Flash Next IQ2 MTP 32K (DwarfStar Metal)" ;;
-    deepseek-v4.1-flash-q2-32k) echo "DeepSeek V4.1 Flash 1017 Q2 32K (DwarfStar SSD)" ;;
-    qwen3.8-27b) echo "Qwen3.8 27B Q8 (llama.cpp)" ;;
-    qwen3.8-27b-fixed-v22-4) echo "Qwen3.8 27B Q8 + Froggeric fixed template v22.4" ;;
-    mimo-v2.6-flash-sushi-2.3bpw) echo "MiMo V2.6 Flash Sushi 2.3bpw 128K (Sushi Metal)" ;;
-    strands-decider-2b-v21) echo "Strands Decider 2B v21 (MLX decision service)" ;;
-    signal-3.8-flash-next-iq4-xs) echo "Signal 3.8 Flash Next AP-IQ4_XS 64K (llama.cpp Metal)" ;;
-    signal-3.8-flash-next-iq4-xs-mtp) echo "Signal 3.8 Flash Next AP-IQ4_XS + MTP 64K (llama.cpp Metal)" ;;
-    qwen3.8-27b-mlxfast-mtp) echo "Qwen3.8 27B MLX.fast native MTP harness" ;;
-    qwen3.8-27b-mlxfast-mtp-server) echo "Qwen3.8 27B MLX.fast native MTP OpenAI server" ;;
-    glm-5.3-flash-q2) echo "GLM 5.3 Flash Q2 65K (DS4)" ;;
-    glm-5.3-flash-q2-131k) echo "GLM 5.3 Flash Q2 131K (DS4)" ;;
-    minimax-h3-standard) echo "MiniMax H3 standard 4-bit (MLX)" ;;
-    minimax-h3-heretic) echo "MiniMax H3 Ultra-Heretic TE8 4-bit (MLX)" ;;
-    minimax-h3-comfy) echo "MiniMax H3 ComfyUI int8 assets" ;;
-    minimax-h3-bf16) echo "MiniMax H3 BF16 reference assets" ;;
-    minimax-music3) echo "MiniMax Music3 assets" ;;
-    mererun-ltx-2.3) echo "LTX 2.3 MLX (MereRun managed)" ;;
-    mererun-qwen3-coder-next) echo "Qwen3 Coder Next Q4_K_M (MereRun managed)" ;;
-    mererun-gemma-3-12b) echo "Gemma 3 12B 4-bit (MereRun managed)" ;;
-    mererun-z-image-turbo) echo "Z-Image Turbo 4-bit (MereRun managed)" ;;
-    muse-glimmer-30b) echo "Muse Glimmer 30B BF16 reference harness" ;;
-    muse-glimmer-30b-server) echo "Muse Glimmer 30B dynamic Q4_K_XL (llama.cpp)" ;;
-    *) return 1 ;;
-  esac
-}
-
-kind() {
-  case "$1" in
-    hy4-flash-q4-k-m) echo service ;;
-    qwen3.8-flash-next-iq-mlx-4.7bpw) echo service ;;
-    deepseek-v4.1-flash-maya-xs-64k) echo service ;;
-    deepseek-v4.1-flash-q2-32k|deepseek-v4.1-flash-sushi-stq-175|deepseek-v4.1-flash-sushi-stq-175-v2|qwen3.8-27b-abliterated-oq8e-mtp) echo service ;;
-    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq2-mtp|mimo-v2.6-flash-sushi-2.3bpw|strands-decider-2b-v21|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp|qwen3.8-27b-mlxfast-mtp-server|glm-5.3-flash-q2|glm-5.3-flash-q2-131k|minimax-h3-standard|minimax-h3-heretic|muse-glimmer-30b-server)
-      echo service
-      ;;
-    muse-glimmer-30b|qwen3.8-27b-mlxfast-mtp)
-      echo harness
-      ;;
-    *)
-      echo asset
-      ;;
-  esac
-}
-
-port() {
-  case "$1" in
-    hy4-flash-q4-k-m) echo 18437 ;;
-    qwen3.8-flash-next-iq-mlx-4.7bpw) echo 18434 ;;
-    deepseek-v4.1-flash-sushi-stq-175) echo 18351 ;;
-    deepseek-v4.1-flash-sushi-stq-175-v2) echo 18352 ;;
-    qwen3.8-27b-abliterated-oq8e-mtp) echo 18320 ;;
-    deepseek-v4.1-flash-maya-xs-64k) echo 8011 ;;
-    qwen3.8-flash-next-iq2-mtp) echo 8008 ;;
-    mimo-v2.6-flash-sushi-2.3bpw) echo 12345 ;;
-    strands-decider-2b-v21) echo 8010 ;;
-    deepseek-v4.1-flash-q2-32k) echo 8009 ;;
-    qwen3.8-27b) echo 8080 ;;
-    qwen3.8-27b-fixed-v22-4) echo 8085 ;;
-    signal-3.8-flash-next-iq4-xs) echo 8086 ;;
-    signal-3.8-flash-next-iq4-xs-mtp) echo 8087 ;;
-    qwen3.8-27b-mlxfast-mtp-server) echo 8083 ;;
-    glm-5.3-flash-q2) echo 8004 ;;
-    glm-5.3-flash-q2-131k) echo 8007 ;;
-    minimax-h3-standard) echo 11234 ;;
-    minimax-h3-heretic) echo 11235 ;;
-    muse-glimmer-30b-server) echo 8082 ;;
-    *) return 1 ;;
-  esac
-}
-
-api_model() {
-  case "$1" in
-    hy4-flash-q4-k-m) echo hy4-flash-q4-k-m ;;
-    qwen3.8-flash-next-iq-mlx-4.7bpw) echo qwen3.8-flash-next-iq-4.7bpw-a0e89db ;;
-    deepseek-v4.1-flash-sushi-stq-175) echo deepseek-v41-1017-stq-175-07fec972 ;;
-    deepseek-v4.1-flash-sushi-stq-175-v2) echo deepseek-v41-1017-stq-175-v2-89630812 ;;
-    qwen3.8-27b-abliterated-oq8e-mtp) echo qwen-oq8e ;;
-    deepseek-v4.1-flash-maya-xs-64k) echo deepseek-v4.1-flash ;;
-    qwen3.8-flash-next-iq2-mtp) echo qwen3.8-flash-next ;;
-    mimo-v2.6-flash-sushi-2.3bpw) echo mimo-v2.6-flash-2.3bpw ;;
-    strands-decider-2b-v21) echo strands-decider-2b-hobson-v21 ;;
-    deepseek-v4.1-flash-q2-32k) echo deepseek-v4.1-flash ;;
-    qwen3.8-27b) echo 'ggml-org/Qwen3.8-27B-GGUF:Q8_0' ;;
-    qwen3.8-27b-fixed-v22-4) echo 'qwen3.8-27b-q8-fixed-v22.4' ;;
-    signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp) echo 'signal-3.8-flash-next' ;;
-    qwen3.8-27b-mlxfast-mtp-server) echo 'qwen3.8-27b-mlxfast-mtp-server' ;;
-    glm-5.3-flash-q2|glm-5.3-flash-q2-131k) echo 'glm-5.3-flash' ;;
-    muse-glimmer-30b-server) echo 'muse-glimmer' ;;
-    *) return 1 ;;
-  esac
-}
-
-context_size() {
-  case "$1" in
-    hy4-flash-q4-k-m) echo 65536 ;;
-    qwen3.8-flash-next-iq-mlx-4.7bpw) echo 65536 ;;
-    deepseek-v4.1-flash-sushi-stq-175|deepseek-v4.1-flash-sushi-stq-175-v2|qwen3.8-27b-abliterated-oq8e-mtp) echo 65536 ;;
-    deepseek-v4.1-flash-maya-xs-64k) echo 65536 ;;
-    deepseek-v4.1-flash-q2-32k) echo 32768 ;;
-    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|muse-glimmer-30b-server) echo 131072 ;;
-    qwen3.8-flash-next-iq2-mtp) echo 32768 ;;
-    mimo-v2.6-flash-sushi-2.3bpw) echo 131072 ;;
-    strands-decider-2b-v21) echo 4096 ;;
-    signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp) echo 65536 ;;
-    qwen3.8-27b-mlxfast-mtp-server) echo 40960 ;;
-    glm-5.3-flash-q2) echo 65536 ;;
-    glm-5.3-flash-q2-131k) echo 131072 ;;
-    *) return 1 ;;
-  esac
-}
-
-output_size() {
-  case "$1" in
-    hy4-flash-q4-k-m) echo 8192 ;;
-    qwen3.8-flash-next-iq-mlx-4.7bpw) echo 32768 ;;
-    deepseek-v4.1-flash-sushi-stq-175|deepseek-v4.1-flash-sushi-stq-175-v2|qwen3.8-27b-abliterated-oq8e-mtp) echo 32768 ;;
-    deepseek-v4.1-flash-maya-xs-64k) echo 16384 ;;
-    deepseek-v4.1-flash-q2-32k) echo 16384 ;;
-    mimo-v2.6-flash-sushi-2.3bpw) echo 32768 ;;
-    qwen3.8-flash-next-iq2-mtp|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp)
-      echo 16384
-      ;;
-    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-27b-mlxfast-mtp-server|glm-5.3-flash-q2|glm-5.3-flash-q2-131k|muse-glimmer-30b-server)
-      echo 32768
-      ;;
-    *) return 1 ;;
-  esac
-}
-
-endpoint() {
-  local id="$1"
-  local output_format="${2:-text}"
-  local service_port
-  local base_url
-  local model_id
-  local context
-  local output
-
-  [[ "$(kind "$id")" == service ]] || {
-    echo "$id does not expose an OpenAI-compatible endpoint." >&2
-    return 2
-  }
-
-  if [[ "$id" == strands-decider-2b-v21 ]]; then
-    service_port="$(port "$id")"
-    base_url="http://127.0.0.1:$service_port/v1"
-    if [[ "$output_format" == --json ]]; then
-      command -v jq >/dev/null 2>&1 || {
-        echo "jq is required for JSON endpoint output." >&2
-        return 1
-      }
-      jq -n --arg id "$id" --arg base_url "$base_url" \
-        --arg api_model "$(api_model "$id")" --argjson context "$(context_size "$id")" \
-        '{id: $id, protocol: "systemone", base_url: $base_url,
-          decision_url: ($base_url + "/systemone"), api_model: $api_model,
-          context: $context, output: null}'
-    elif [[ "$output_format" == text ]]; then
-      printf '%s/systemone\n' "$base_url"
-    else
-      echo "Unknown endpoint output format: $output_format" >&2
-      return 2
-    fi
-    return
-  fi
-
-  service_port="$(port "$id")"
-  base_url="http://127.0.0.1:$service_port/v1"
-  model_id="$(api_model "$id" 2>/dev/null || true)"
-  context="$(context_size "$id" 2>/dev/null || true)"
-  output="$(output_size "$id" 2>/dev/null || true)"
-
-  if [[ "$output_format" == --json ]]; then
-    command -v jq >/dev/null 2>&1 || {
-      echo "jq is required for JSON endpoint output." >&2
-      return 1
-    }
-    jq -n \
-      --arg id "$id" \
-      --arg base_url "$base_url" \
-      --arg api_model "$model_id" \
-      --argjson context "${context:-null}" \
-      --argjson output "${output:-null}" \
-      '{id: $id, base_url: $base_url, api_model: (if $api_model == "" then null else $api_model end), context: $context, output: $output}'
-    return
-  fi
-
-  [[ "$output_format" == text ]] || {
-    echo "Unknown endpoint output format: $output_format" >&2
-    return 2
-  }
-  printf '%s\n' "$base_url"
-}
-
-omp_family() {
-  case "$1" in
-    mimo-v2.6-flash-sushi-2.3bpw) echo sushi ;;
-    deepseek-v4.1-flash-q2-32k|deepseek-v4.1-flash-maya-xs-64k) echo deepseek41-ds4 ;;
-    glm-5.3-flash-q2|glm-5.3-flash-q2-131k) echo glm-ds4 ;;
-    qwen3.8-27b|qwen3.8-27b-fixed-v22-4|qwen3.8-flash-next-iq2-mtp|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp|qwen3.8-27b-mlxfast-mtp-server) echo qwen ;;
-    *) return 1 ;;
-  esac
-}
-
-write_omp_models() {
-  local id="$1"
-  local endpoint_json
-  local base_url
-  local provider_model
-  local context
-  local output
-  local provider
-  local name
-  local family
-  local temporary
-
-  family="$(omp_family "$id")" || {
-    echo "$id does not have an OMP compatibility preset." >&2
-    return 2
-  }
-  endpoint_json="$(endpoint "$id" --json)"
-  base_url="$(jq -er '.base_url' <<<"$endpoint_json")"
-  provider_model="$(jq -r '.api_model // .id' <<<"$endpoint_json")"
-  context="$(jq -er '.context' <<<"$endpoint_json")"
-  output="$(jq -er '.output' <<<"$endpoint_json")"
-  provider="modelctl-${id//./-}"
-  name="$(label "$id")"
-
-  mkdir -p "$OMP_AGENT_DIR"
-  temporary="$(mktemp "$OMP_AGENT_DIR/models.yml.XXXXXX")"
-  case "$family" in
-    deepseek41-ds4)
-      # Use an explicit effort so OMP sends none during tool loops and compaction.
-      jq -n \
-        --arg provider "$provider" \
-        --arg base_url "$base_url" \
-        --arg model "$provider_model" \
-        --arg name "$name" \
-        --argjson context "$context" \
-        --argjson output "$output" \
-        '{providers: {($provider): {
-          baseUrl: $base_url,
-          auth: "none",
-          api: "openai-responses",
-          models: [{
-            id: $model,
-            name: $name,
-            reasoning: true,
-            thinking: {mode: "effort", efforts: ["minimal", "high"], defaultLevel: "high", requiresEffort: false},
-            input: ["text"],
-            imageInputDecoder: "stb",
-            tokenizer: "deepseek-v3",
-            supportsTools: true,
-            contextWindow: $context,
-            maxTokens: $output,
-            cost: {input: 0, output: 0, cacheRead: 0, cacheWrite: 0},
-            compat: {
-              supportsStore: false,
-              supportsDeveloperRole: false,
-              supportsReasoningEffort: true,
-              reasoningEffortMap: {minimal: "none"},
-              supportsToolChoice: false,
-              supportsForcedToolChoice: false
-            }
-          }]
-        }}}' >"$temporary"
-      ;;
-    glm-ds4)
-      jq -n \
-        --arg provider "$provider" \
-        --arg base_url "$base_url" \
-        --arg model "$provider_model" \
-        --arg name "$name" \
-        --argjson context "$context" \
-        --argjson output "$output" \
-        '{providers: {($provider): {
-          baseUrl: $base_url,
-          auth: "none",
-          api: "openai-responses",
-          models: [{
-            id: $model,
-            name: $name,
-            reasoning: true,
-            thinking: {mode: "effort", efforts: ["high"], defaultLevel: "high", requiresEffort: true},
-            input: ["text"],
-            tokenizer: "glm5",
-            supportsTools: true,
-            contextWindow: $context,
-            maxTokens: $output,
-            cost: {input: 0, output: 0, cacheRead: 0, cacheWrite: 0},
-            compat: {
-              supportsStore: false,
-              supportsDeveloperRole: false,
-              supportsReasoningEffort: true,
-              supportsToolChoice: false,
-              supportsForcedToolChoice: false
-            }
-          }]
-        }}}' >"$temporary"
-      ;;
-    qwen)
-      local input='["text"]'
-      case "$id" in
-        qwen3.8-27b|qwen3.8-27b-fixed-v22-4|signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp) input='["text", "image"]' ;;
-      esac
-      jq -n \
-        --arg provider "$provider" \
-        --arg base_url "$base_url" \
-        --arg model "$provider_model" \
-        --arg name "$name" \
-        --argjson input "$input" \
-        --argjson context "$context" \
-        --argjson output "$output" \
-        '{providers: {($provider): {
-          baseUrl: $base_url,
-          auth: "none",
-          api: "openai-completions",
-          models: [{
-            id: $model,
-            name: $name,
-            reasoning: true,
-            thinking: {mode: "effort", efforts: ["low", "medium", "xhigh"], defaultLevel: "medium", requiresEffort: false},
-            input: $input,
-            imageInputDecoder: "stb",
-            tokenizer: "qwen3",
-            supportsTools: true,
-            contextWindow: $context,
-            maxTokens: $output,
-            cost: {input: 0, output: 0, cacheRead: 0, cacheWrite: 0},
-            compat: {
-              supportsStore: false,
-              supportsDeveloperRole: false,
-              supportsReasoningEffort: true,
-              maxTokensField: "max_tokens",
-              thinkingFormat: "qwen-chat-template",
-              qwenTemplateReasoningEffort: true
-            }
-          }]
-        }}}' >"$temporary"
-      ;;
-  esac
-  mv "$temporary" "$OMP_AGENT_DIR/models.yml"
-  printf '%s/%s\n' "$provider" "$provider_model"
-}
-
-run_omp() {
-  local id="$1"
-  shift
-  if [[ "$id" == strands-decider-2b-v21 ]]; then
-    echo "$id scores choices and does not support OMP chat." >&2
-    return 2
-  fi
-  local selector
-  local owned_server=false
-
-  if [[ "$(omp_family "$id")" == deepseek41-ds4 && $# -gt 0 ]]; then
-    # OMP's literal off can omit effort on side requests. minimal maps to native none.
-    local args=("$@") i
-    for ((i=0; i<${#args[@]}; i++)); do
-      [[ "${args[$i]}" != -- ]] || break
-      if [[ "${args[$i]}" == --thinking=off ]]; then
-        args[$i]=--thinking=minimal
-      elif [[ "${args[$i]}" == --thinking && "${args[$((i+1))]:-}" == off ]]; then
-        args[$((i+1))]=minimal
-      fi
-    done
-    set -- "${args[@]}"
-  fi
-
-  if [[ "$(omp_family "$id")" == glm-ds4 || "$(omp_family "$id")" == deepseek41-ds4 ]]; then
-    export PI_EDIT_VARIANT="${PI_EDIT_VARIANT:-replace}"
-  fi
-
-  command -v omp >/dev/null 2>&1 || {
-    echo "omp is required for modelctl omp." >&2
-    return 1
-  }
-  command -v jq >/dev/null 2>&1 || {
-    echo "jq is required for modelctl omp." >&2
-    return 1
-  }
-  if [[ "$id" != mimo-v2.6-flash-sushi-2.3bpw ]]; then
-    selector="$(write_omp_models "$id")"
-  fi
-
-  if ! healthy "$id"; then
-    if service_loaded "$id" || listening "$id"; then
-      echo "$id has a listener or launch service but is not healthy." >&2
-      return 1
-    fi
-    start_model "$id" >&2
-    owned_server=true
-  fi
-
-  cleanup_omp() {
-    if [[ "$owned_server" == true ]]; then
-      stop_model "$id" >&2 || true
-    fi
-  }
-  trap cleanup_omp EXIT
-  trap 'exit 130' INT
-  trap 'exit 143' TERM
-
-  set +e
-  if [[ "$id" == mimo-v2.6-flash-sushi-2.3bpw ]]; then
-    "$SUSHI_MIMO_RUNTIME_ROOT/sushi" launch omp \
-      --model "$(api_model "$id")" --port "$(port "$id")" -- "$@"
-  else
-    PI_CODING_AGENT_DIR="$OMP_AGENT_DIR" omp --model "$selector" "$@"
-  fi
-  local status=$?
-  set -e
-  trap - EXIT INT TERM
-  cleanup_omp
-  return "$status"
-}
-
-# Reuse the selected server; modelctl start/stop remain its lifecycle controls.
-run_dsh() {
-  local id="$1"; shift
-  if [[ "$id" == strands-decider-2b-v21 ]]; then
-    echo "$id scores choices and does not support DSH chat." >&2
-    return 2
-  fi
-  local prepare=false profile=web
-  if [[ "${1:-}" == --prepare ]]; then prepare=true; shift; fi
-  if [[ "${1:-}" == web || "${1:-}" == headless ]]; then profile="$1"; shift; fi
-  local dsh_root="${MODELCTL_DSH_ROOT:-$HOME/code/deepseek-harness.codex-modelctl-dsh-rc3}"
-  local dsh_home helper metadata
-  if [[ -f "$dsh_root/packages/bundle/web-app/presets/ptc.patch.yml" ]]; then
-    dsh_home="${MODELCTL_DSH_HOME:-$STATE_HOME/dsh-v021/$id}"
-    helper="$MODELCTL_ROOT/bin/modelctl-dsh-v2.py"
-  else
-    dsh_home="${MODELCTL_DSH_HOME:-$STATE_HOME/dsh/$id}"
-    helper="$MODELCTL_ROOT/bin/modelctl-dsh.py"
-  fi
-  command -v node >/dev/null && command -v python3 >/dev/null || {
-    echo "Node and Python 3 are required for modelctl dsh." >&2; return 1;
-  }
-  [[ -f "$dsh_root/apps/cli/lib/bin.js" && -f "$dsh_root/.dsh-build/client-build-environment.json" ]] || {
-    echo "Build DSH first: cd \"$dsh_root\" && corepack pnpm install --frozen-lockfile && corepack pnpm build" >&2
-    return 1
-  }
-  metadata="$(endpoint "$id" --json)"
-  printf '%s\n' "$metadata" | python3 "$helper" "$dsh_root" "$dsh_home" "$profile"
-  if [[ "$prepare" == true ]]; then
-    echo "Prepared $dsh_home ($profile); no server or inference started."
-    return
-  fi
-  healthy "$id" || {
-    echo "$id is not healthy. Start it with: modelctl start $id" >&2
-    return 1
-  }
-  [[ "$profile" != web ]] || set -- --host 127.0.0.1 "$@"
-  DSH_HOME="$dsh_home" DSH_TOOLS_MODE=ptc \
-    MODELCTL_DSH_API_KEY=local-only DEEPSEEK_API_KEY=local-only \
-    DEEPSEEK_BASE_URL="$(printf '%s' "$metadata" | jq -r .base_url)" \
-    node "$dsh_root/apps/cli/lib/bin.js" --profile "$profile" \
-      --patch "$dsh_home/modelctl-$profile.patch.yml" "$@"
-}
-
-model_path() {
-  case "$1" in
-    hy4-flash-q4-k-m) echo "$HY4_MODEL_DIR/Hy4-flash-Q4_K_M-00001-of-00002.gguf" ;;
-    qwen3.8-flash-next-iq-mlx-4.7bpw) echo "$MODEL_HOME/mlx/qwen/qwen3.8-flash-next-iq-4.7bpw-a0e89db" ;;
-    deepseek-v4.1-flash-sushi-stq-175) echo "$MODEL_HOME/sushi/deepseek-v41-1017-stq-175-07fec972" ;;
-    deepseek-v4.1-flash-sushi-stq-175-v2) echo "$MODEL_HOME/sushi/deepseek-v41-1017-stq-175-v2-89630812" ;;
-    qwen3.8-27b-abliterated-oq8e-mtp) echo "$MODEL_HOME/mlx/qwen/qwen3.8-27b-abliterated-oq8e-mtp" ;;
-    deepseek-v4.1-flash-maya-xs-64k) echo "$MODEL_HOME/gguf/deepseek/deepseek-v4.1-flash-1017-maya-xs-abliterated-7832036c/DeepSeek-V4.1-Flash-1017-Maya-XS-Abliterated.gguf" ;;
-    strands-decider-2b-v21) echo "$STRANDS_DECIDER_DIR" ;;
-    mimo-v2.6-flash-sushi-2.3bpw) echo "$SUSHI_MIMO_MODEL_DIR" ;;
-    qwen3.8-flash-next-iq2-mtp) echo "$QWEN38_DS4_MODEL_DIR/$QWEN38_DS4_MODEL" ;;
-    deepseek-v4.1-flash-q2-32k) echo "$MODEL_HOME/gguf/deepseek/deepseek-v4.1-flash-1017-q2/DeepSeek-V4.1-Flash-1017-IQ2_XXS-Q2_K-imatrix.gguf" ;;
-    qwen3.8-27b) echo "$MODEL_HOME/aliases/qwen3.8-27b" ;;
-    qwen3.8-27b-fixed-v22-4) echo "$MODEL_HOME/aliases/qwen3.8-27b" ;;
-    signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp) echo "$SIGNAL38_MODEL_DIR/$SIGNAL38_MODEL" ;;
-    qwen3.8-27b-mlxfast-mtp) echo "$MODEL_HOME/mlx/qwen/qwen3.8-27b-mlxfast-mtp" ;;
-    qwen3.8-27b-mlxfast-mtp-server) echo "$MODEL_HOME/mlx/qwen/qwen3.8-27b-mlxfast-mtp" ;;
-    glm-5.3-flash-q2|glm-5.3-flash-q2-131k) echo "$MODEL_HOME/gguf/glm-5.3-flash-antirez/GLM-5.3-Flash-Q2.gguf" ;;
-    minimax-h3-standard) echo "$MODEL_HOME/mlx/minimax-h3/standard-4bit" ;;
-    minimax-h3-heretic) echo "$MODEL_HOME/mlx/minimax-h3/heretic-4bit" ;;
-    minimax-h3-comfy) echo "$MODEL_HOME/diffusers/minimax/h3-comfy" ;;
-    minimax-h3-bf16) echo "$MODEL_HOME/diffusers/minimax/h3-bf16-reference" ;;
-    minimax-music3) echo "$MODEL_HOME/diffusers/minimax/music3" ;;
-    mererun-ltx-2.3) echo "$MODEL_HOME/managed/mererun/snapshots/models/dgrauet/ltx-2.3-mlx" ;;
-    mererun-qwen3-coder-next) echo "$MODEL_HOME/managed/mererun/snapshots/models/Qwen/Qwen3-Coder-Next-GGUF" ;;
-    mererun-gemma-3-12b) echo "$MODEL_HOME/managed/mererun/snapshots/models/mlx-community/gemma-3-12b-it-4bit" ;;
-    mererun-z-image-turbo) echo "$MODEL_HOME/managed/mererun/snapshots/models/filipstrand/Z-Image-Turbo-mflux-4bit" ;;
-    muse-glimmer-30b) echo "$MODEL_HOME/llm/meta/muse-glimmer-30b-bf16" ;;
-    muse-glimmer-30b-server) echo "$MODEL_HOME/gguf/meta/muse-glimmer-30b" ;;
-    *) return 1 ;;
-  esac
-}
-
-known_model() {
-  label "$1" >/dev/null 2>&1
-}
-
-sushi_mimo_sizes_match() {
-  [[ -f "$SUSHI_MIMO_MANIFEST" ]] || return 1
-  local count=0 expected name
-  while IFS=$'\t' read -r expected name; do
-    [[ -f "$SUSHI_MIMO_MODEL_DIR/$name" &&
-      "$(/usr/bin/stat -f '%z' "$SUSHI_MIMO_MODEL_DIR/$name")" == "$expected" ]] || return 1
-    count=$((count + 1))
-  done < <(jq -r '.files[] | [.size, .path] | @tsv' "$SUSHI_MIMO_MANIFEST")
-  [[ "$count" == 159 ]] || return 1
-  [[ -z "$(find "$SUSHI_MIMO_MODEL_DIR" -name '*.aria2' -print -quit)" ]]
-}
-
-strands_decider_sizes_match() {
-  [[ -f "$STRANDS_DECIDER_MANIFEST" ]] || return 1
-  local count=0 root expected name path
-  while IFS=$'\t' read -r root expected name; do
-    path="$MODEL_HOME/$root/$name"
-    [[ -f "$path" && "$(/usr/bin/stat -f '%z' "$path")" == "$expected" ]] || return 1
-    count=$((count + 1))
-  done < <(jq -r '.repos[] | .path as $root | .files[] | [$root, .size, .path] | @tsv' "$STRANDS_DECIDER_MANIFEST")
-  [[ "$count" == 39 &&
-    -z "$(find "$STRANDS_DECIDER_DIR" "$STRANDS_DECIDER_BASE_DIR" -name '*.aria2' -print -quit)" ]]
-}
-
-ready() {
-  local id="$1"
-  case "$id" in
-    hy4-flash-q4-k-m)
-      [[ -x "$HY4_RUNTIME" &&
-        "$(/usr/bin/openssl dgst -sha256 "$HY4_RUNTIME" | awk '{print $NF}')" == "$HY4_RUNTIME_SHA256" ]] &&
-        python3 "$MODELCTL_ROOT/bin/modelctl-hy4-verified.py" "$HY4_MODEL_DIR" "$HY4_RECEIPT"
-      ;;
-    qwen3.8-flash-next-iq-mlx-4.7bpw)
-      [[ -x "$MODEL_HOME/runtime/mlx-serve-v26.11.1/mlx-serve-macos-arm64/mlx-serve" &&
-        "$(/usr/bin/openssl dgst -sha256 "$MODEL_HOME/runtime/mlx-serve-v26.11.1/mlx-serve-macos-arm64/mlx-serve" | awk '{print $NF}')" == 62e3e3fb82f577101a66ac708c3d4925ee4881d91cce08e9b811dafb1ecd7238 ]] &&
-        python3 "$MODELCTL_ROOT/bin/modelctl-verified.py" flash-next-iq "$(model_path "$id")" "$STATE_HOME/verification/qwen38-flash-next-iq.json"
-      ;;
-    deepseek-v4.1-flash-sushi-stq-175)
-      [[ -x "$MODEL_HOME/runtime/sushi-v1.4.0/sushi-macos-arm64/sushi" ]] &&
-        python3 "$MODELCTL_ROOT/bin/modelctl-verified.py" deepseek "$(model_path "$id")" "$STATE_HOME/verification/deepseek41-stq-175.json"
-      ;;
-    deepseek-v4.1-flash-sushi-stq-175-v2)
-      [[ -x "$MODEL_HOME/runtime/sushi-v1.5.0/sushi-macos-arm64/sushi" &&
-        "$(/usr/bin/openssl dgst -sha256 "$MODEL_HOME/runtime/sushi-v1.5.0/sushi-macos-arm64/sushi" | awk '{print $NF}')" == d0c9243c052fe8cf667eb5473e739cf08ca8f70407ad87b1eb283daf2032690f ]] &&
-        python3 "$MODELCTL_ROOT/bin/modelctl-verified.py" deepseek-v2 "$(model_path "$id")" "$STATE_HOME/verification/deepseek41-stq-175-v2.json"
-      ;;
-    qwen3.8-27b-abliterated-oq8e-mtp)
-      [[ -x "$MODEL_HOME/runtime/omlx-eval-20261023/.venv/bin/omlx" ]] &&
-        python3 "$MODELCTL_ROOT/bin/modelctl-verified.py" qwen "$(model_path "$id")" "$STATE_HOME/verification/qwen38-oq8e-mtp.json"
-      ;;
-    deepseek-v4.1-flash-maya-xs-64k)
-      # Block incomplete transfers; checksum verification is a separate step.
-      [[ -f "$(model_path "$id")" && ! -e "$(model_path "$id").aria2" &&
-        "$(/usr/bin/stat -L -f '%z' "$(model_path "$id")")" == "$DEEPSEEK41_MODEL_BYTES" &&
-        -x "$MAYA_DS4_ROOT/ds4-server" &&
-        "$(git -C "$MAYA_DS4_ROOT" rev-parse HEAD 2>/dev/null)" == "$MAYA_DS4_COMMIT" ]] &&
-        git -C "$MAYA_DS4_ROOT" diff --quiet HEAD -- &&
-        make -q -C "$MAYA_DS4_ROOT" ds4-server
-      ;;
-    strands-decider-2b-v21)
-      [[ -x "$STRANDS_DECIDER_VENV/bin/strands-decider" &&
-        -f "$STRANDS_DECIDER_DIR/strands_decider_config.json" &&
-        -f "$STRANDS_DECIDER_BASE_DIR/config.json" &&
-        -L "$STRANDS_DECIDER_HF_SNAPSHOT" &&
-        -f "$STRANDS_DECIDER_HF_TREE" &&
-        "$(readlink "$STRANDS_DECIDER_HF_SNAPSHOT")" == "$STRANDS_DECIDER_BASE_DIR" &&
-        "$(git -C "$STRANDS_DECIDER_SOURCE" rev-parse HEAD 2>/dev/null)" == "$STRANDS_DECIDER_REVISION" ]] &&
-        strands_decider_sizes_match
-      ;;
-    mimo-v2.6-flash-sushi-2.3bpw)
-      [[ -x "$SUSHI_MIMO_RUNTIME_ROOT/sushi" &&
-        -f "$SUSHI_MIMO_MODEL_DIR/config.json" &&
-        -f "$SUSHI_MIMO_MODEL_DIR/model.safetensors.index.json" ]] &&
-        sushi_mimo_sizes_match
-      ;;
-    qwen3.8-flash-next-iq2-mtp)
-      [[ -f "$(model_path "$id")" &&
-        "$(/usr/bin/stat -f '%z' "$(model_path "$id")")" == 50343093376 &&
-        -f "$QWEN38_DS4_MODEL_DIR/$QWEN38_DS4_PLE" &&
-        "$(/usr/bin/stat -f '%z' "$QWEN38_DS4_MODEL_DIR/$QWEN38_DS4_PLE")" == 32000157440 &&
-        -x "$QWEN38_DS4_ROOT/ds4-server" &&
-        "$(git -C "$QWEN38_DS4_ROOT" rev-parse HEAD 2>/dev/null)" == "$QWEN38_DS4_COMMIT" ]] &&
-        git -C "$QWEN38_DS4_ROOT" diff --quiet HEAD -- &&
-        make -q -C "$QWEN38_DS4_ROOT" ds4-server
-      ;;
-    deepseek-v4.1-flash-q2-32k)
-      [[ -f "$(model_path "$id")" &&
-        "$(/usr/bin/stat -L -f '%z' "$(model_path "$id")")" == "$DEEPSEEK41_MODEL_BYTES" &&
-        -x "$DEEPSEEK41_DS4_ROOT/ds4-server" &&
-        "$(git -C "$DEEPSEEK41_DS4_ROOT" rev-parse HEAD 2>/dev/null)" == "$DEEPSEEK41_DS4_COMMIT" ]] &&
-        git -C "$DEEPSEEK41_DS4_ROOT" diff --quiet HEAD -- &&
-        make -q -C "$DEEPSEEK41_DS4_ROOT" ds4-server
-      ;;
-    qwen3.8-27b)
-      [[ -f "$MODEL_HOME/aliases/qwen3.8-27b/model.gguf" && -f "$MODEL_HOME/aliases/qwen3.8-27b/mmproj.gguf" ]]
-      ;;
-    qwen3.8-27b-fixed-v22-4)
-      [[ -f "$MODEL_HOME/aliases/qwen3.8-27b/model.gguf" &&
-        -f "$MODEL_HOME/aliases/qwen3.8-27b/mmproj.gguf" &&
-        -f "$QWEN_FIXED_TEMPLATE" &&
-        "$(shasum -a 256 "$QWEN_FIXED_TEMPLATE" | awk '{ print $1 }')" == "$QWEN_FIXED_TEMPLATE_SHA256" &&
-        -x "$(command -v llama-server 2>/dev/null)" ]]
-      ;;
-    signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp)
-      [[ -f "$SIGNAL38_MODEL_DIR/$SIGNAL38_MODEL" &&
-        "$(/usr/bin/stat -f '%z' "$SIGNAL38_MODEL_DIR/$SIGNAL38_MODEL")" == "$SIGNAL38_MODEL_BYTES" &&
-        -f "$SIGNAL38_MODEL_DIR/$SIGNAL38_MMPROJ" &&
-        "$(/usr/bin/stat -f '%z' "$SIGNAL38_MODEL_DIR/$SIGNAL38_MMPROJ")" == "$SIGNAL38_MMPROJ_BYTES" &&
-        -x "$SIGNAL38_RUNTIME_ROOT/$SIGNAL38_RUNTIME_BUILD/bin/llama-server" &&
-        "$(git -C "$SIGNAL38_RUNTIME_ROOT" rev-parse HEAD 2>/dev/null)" == "$SIGNAL38_RUNTIME_COMMIT" &&
-        -f "$SIGNAL38_RUNTIME_PATCH" ]] &&
-        cmp -s "$SIGNAL38_RUNTIME_PATCH" \
-          <(git -c diff.mnemonicprefix=false -C "$SIGNAL38_RUNTIME_ROOT" diff -U0 -- src/llama-ple-disk.cpp) &&
-        { [[ "$id" != signal-3.8-flash-next-iq4-xs-mtp ]] ||
-          [[ -f "$SIGNAL38_MODEL_DIR/$SIGNAL38_MTP" &&
-            "$(/usr/bin/stat -f '%z' "$SIGNAL38_MODEL_DIR/$SIGNAL38_MTP")" == "$SIGNAL38_MTP_BYTES" ]]; }
-      ;;
-    glm-5.3-flash-q2|glm-5.3-flash-q2-131k)
-      [[ -f "$(model_path "$id")" &&
-        "$(/usr/bin/stat -f '%z' "$(model_path "$id")")" == "$GLM53_MODEL_BYTES" &&
-        -x "$GLM53_DS4_ROOT/ds4-server" &&
-        "$(git -C "$GLM53_DS4_ROOT" rev-parse HEAD 2>/dev/null)" == "$GLM53_DS4_COMMIT" ]] &&
-        git -C "$GLM53_DS4_ROOT" diff --quiet HEAD -- &&
-        make -q -C "$GLM53_DS4_ROOT" ds4-server
-      ;;
-    qwen3.8-27b-mlxfast-mtp)
-      [[ -x "$MODEL_HOME/scripts/qwen38-mlxfast-mtp.sh" ]] &&
-        "$MODEL_HOME/scripts/qwen38-mlxfast-mtp.sh" --doctor >/dev/null 2>&1
-      ;;
-    qwen3.8-27b-mlxfast-mtp-server)
-      [[ -x "$MODEL_HOME/scripts/qwen38-mlxfast-server.sh" ]] &&
-        "$MODEL_HOME/scripts/qwen38-mlxfast-server.sh" --doctor >/dev/null 2>&1
-      ;;
-    minimax-h3-standard|minimax-h3-heretic)
-      [[ -f "$(model_path "$id")/config.json" && -x "$HOME/code/minimax-h3-mlx/runtime/mlx-serve" ]]
-      ;;
-    muse-glimmer-30b)
-      [[ -f "$(model_path "$id")/config.json" &&
-        -f "$(model_path "$id")/model.safetensors.index.json" &&
-        -f "$(model_path "$id")/model-00001-of-00002.safetensors" &&
-        -f "$(model_path "$id")/model-00002-of-00002.safetensors" &&
-        -x "$MUSE_GLIMMER_HARNESS_VENV/bin/python" &&
-        -f "$MUSE_GLIMMER_HARNESS_DIR/run_agent.py" &&
-        -f "$MUSE_GLIMMER_HARNESS_DIR/response_parser.py" ]]
-      ;;
-    muse-glimmer-30b-server)
-      [[ -f "$(model_path "$id")/Muse-Glimmer-30B-KQuant-Dynamic-Q4_K_XL.gguf" &&
-        -f "$(model_path "$id")/mmproj-Muse-Glimmer-30B-Q4_K_M.gguf" &&
-        -x "$(command -v llama-server 2>/dev/null)" ]]
-      ;;
-    *)
-      [[ -e "$(model_path "$id")" ]]
-      ;;
-  esac
-}
-
-listening() {
-  local id="$1"
-  local service_port
-  service_port="$(port "$id")"
-  lsof -nP -iTCP:"$service_port" -sTCP:LISTEN >/dev/null 2>&1
-}
-
-healthy() {
-  local id="$1"
-  local service_port
-  service_port="$(port "$id")"
-  case "$id" in
-    deepseek-v4.1-flash-sushi-stq-175-v2)
-      curl -fsS --max-time 2 "http://127.0.0.1:$service_port/v1/models" 2>/dev/null |
-        jq -e --arg model "$(api_model "$id")" '.data | any(.id == $model and .loaded == true and .state == "ready")' >/dev/null 2>&1
-      ;;
-    hy4-flash-q4-k-m)
-      curl -fsS --max-time 2 "http://127.0.0.1:$service_port/health" >/dev/null 2>&1 &&
-        curl -fsS --max-time 2 "http://127.0.0.1:$service_port/v1/models" 2>/dev/null |
-        jq -e --arg model "$(api_model "$id")" '.data | any(.id == $model)' >/dev/null 2>&1
-      ;;
-    qwen3.8-flash-next-iq-mlx-4.7bpw|deepseek-v4.1-flash-sushi-stq-175|qwen3.8-27b-abliterated-oq8e-mtp)
-      curl -fsS --max-time 2 "http://127.0.0.1:$service_port/v1/models" 2>/dev/null |
-        jq -e --arg model "$(api_model "$id")" '.data | any(.id == $model)' >/dev/null 2>&1
-      ;;
-    strands-decider-2b-v21)
-      curl -fsS --max-time 2 "http://127.0.0.1:$service_port/health" 2>/dev/null |
-        jq -e '.status == "ok" and .model == "strands-decider-2b-hobson-v21" and .device == "mlx"' >/dev/null 2>&1
-      ;;
-    mimo-v2.6-flash-sushi-2.3bpw)
-      curl -fsS --max-time 2 "http://127.0.0.1:$service_port/v1/models" 2>/dev/null |
-        jq -e '.data | any(.id == "mimo-v2.6-flash-2.3bpw" and .loaded == true and .state == "ready")' >/dev/null 2>&1
-      ;;
-    qwen3.8-flash-next-iq2-mtp)
-      curl -fsS --max-time 2 "http://127.0.0.1:$service_port/v1/models" 2>/dev/null |
-        jq -e '.data | any(.id == "qwen3.8-flash-next")' >/dev/null 2>&1
-      ;;
-    qwen3.8-27b)
-      curl -fsS --max-time 2 "http://127.0.0.1:$service_port/health" >/dev/null 2>&1
-      ;;
-    glm-5.3-flash-q2|glm-5.3-flash-q2-131k)
-      curl -fsS --max-time 2 "http://127.0.0.1:$service_port/v1/models" 2>/dev/null |
-        jq -e '.data | any(.id == "glm-5.3-flash")' >/dev/null 2>&1
-      ;;
-    *)
-      curl -fsS --max-time 2 "http://127.0.0.1:$service_port/v1/models" >/dev/null 2>&1
-      ;;
-  esac
-}
-
-service_label() {
-  local id="${1//./_}"
-  echo "com.fcoury.local-models.$id"
-}
-
-service_loaded() {
-  launchctl print "gui/$(id -u)/$(service_label "$1")" >/dev/null 2>&1
-}
-
-service_pid() {
-  launchctl print "gui/$(id -u)/$(service_label "$1")" 2>/dev/null |
-    sed -n 's/^[[:space:]]*pid = \([0-9][0-9]*\)$/\1/p' |
-    head -n 1
-}
-
-qwen_variant_peer() {
-  case "$1" in
-    qwen3.8-27b) echo qwen3.8-27b-fixed-v22-4 ;;
-    qwen3.8-27b-fixed-v22-4) echo qwen3.8-27b ;;
-    *) return 1 ;;
-  esac
-}
-
-require_qwen_variant_peer_stopped() {
-  local id="$1"
-  local peer
-  peer="$(qwen_variant_peer "$id" 2>/dev/null || true)"
-  [[ -n "$peer" ]] || return 0
-  if service_loaded "$peer" || listening "$peer"; then
-    echo "$id reuses the same Qwen weights as $peer; stop $peer before starting this profile." >&2
-    return 1
-  fi
-}
-
-signal_variant_peer() {
-  case "$1" in
-    signal-3.8-flash-next-iq4-xs) echo signal-3.8-flash-next-iq4-xs-mtp ;;
-    signal-3.8-flash-next-iq4-xs-mtp) echo signal-3.8-flash-next-iq4-xs ;;
-    *) return 1 ;;
-  esac
-}
-
-require_signal_variant_peer_stopped() {
-  local id="$1"
-  local peer
-  peer="$(signal_variant_peer "$id" 2>/dev/null || true)"
-  [[ -n "$peer" ]] || return 0
-  if service_loaded "$peer" || listening "$peer"; then
-    echo "$id reuses the same Signal weights as $peer; stop $peer before starting this profile." >&2
-    return 1
-  fi
-}
-
-glm_variant_peer() {
-  case "$1" in
-    glm-5.3-flash-q2) echo glm-5.3-flash-q2-131k ;;
-    glm-5.3-flash-q2-131k) echo glm-5.3-flash-q2 ;;
-    *) return 1 ;;
-  esac
-}
-
-require_glm_variant_peer_stopped() {
-  local id="$1"
-  local peer
-  peer="$(glm_variant_peer "$id" 2>/dev/null || true)"
-  [[ -n "$peer" ]] || return 0
-  if service_loaded "$peer" || listening "$peer"; then
-    echo "$id reuses the same GLM weights as $peer; stop $peer before starting this profile." >&2
-    return 1
-  fi
-}
-
-# These profiles consume most of a 128 GiB host. The 2B decision service can
-# coexist with MiMo's 128K profile, but remains exclusive with DeepSeek V4.1.
-require_large_model_exclusive() {
-  local id="$1" peer
-  if [[ "$id" != hy4-flash-q4-k-m ]] &&
-     { service_loaded hy4-flash-q4-k-m || listening hy4-flash-q4-k-m; }; then
-    echo "Stop hy4-flash-q4-k-m before starting $id." >&2
-    return 1
-  fi
-  if [[ "$id" == hy4-flash-q4-k-m || "$id" == qwen3.8-flash-next-iq-mlx-4.7bpw || "$id" == deepseek-v4.1-flash-sushi-stq-175 || "$id" == deepseek-v4.1-flash-sushi-stq-175-v2 || "$id" == deepseek-v4.1-flash-q2-32k || "$id" == deepseek-v4.1-flash-maya-xs-64k || "$id" == mimo-v2.6-flash-sushi-2.3bpw ]]; then
-    while IFS= read -r peer; do
-      [[ "$peer" != "$id" && "$(kind "$peer")" == service ]] || continue
-      if [[ "$id" == mimo-v2.6-flash-sushi-2.3bpw && "$peer" == strands-decider-2b-v21 ]]; then
-        continue
-      fi
-      if service_loaded "$peer" || listening "$peer"; then
-        echo "Stop $peer before starting $id." >&2
-        return 1
-      fi
-    done < <(models)
-  elif [[ "$id" == strands-decider-2b-v21 ]]; then
-    for peer in qwen3.8-flash-next-iq-mlx-4.7bpw deepseek-v4.1-flash-sushi-stq-175 deepseek-v4.1-flash-sushi-stq-175-v2 deepseek-v4.1-flash-q2-32k deepseek-v4.1-flash-maya-xs-64k; do
-      if service_loaded "$peer" || listening "$peer"; then
-        echo "Stop $peer before starting $id." >&2
-        return 1
-      fi
-    done
-  elif service_loaded qwen3.8-flash-next-iq-mlx-4.7bpw || listening qwen3.8-flash-next-iq-mlx-4.7bpw ||
-       service_loaded deepseek-v4.1-flash-sushi-stq-175 || listening deepseek-v4.1-flash-sushi-stq-175 ||
-       service_loaded deepseek-v4.1-flash-sushi-stq-175-v2 || listening deepseek-v4.1-flash-sushi-stq-175-v2 ||
-       service_loaded deepseek-v4.1-flash-q2-32k || listening deepseek-v4.1-flash-q2-32k ||
-       service_loaded deepseek-v4.1-flash-maya-xs-64k || listening deepseek-v4.1-flash-maya-xs-64k ||
-       service_loaded mimo-v2.6-flash-sushi-2.3bpw || listening mimo-v2.6-flash-sushi-2.3bpw; then
-    echo "Stop the active large-model profile before starting $id." >&2
-    return 1
-  fi
-}
-
-run_model() {
-  local id="$1"
-  shift
-  require_large_model_exclusive "$id"
-  case "$id" in
-    hy4-flash-q4-k-m)
-      if [[ "$(/usr/sbin/sysctl -n kern.memorystatus_vm_pressure_level)" != 1 ]] ||
-         (( $(/usr/sbin/sysctl -n iogpu.wired_limit_mb) < 114688 )); then
-        echo "Hy4 needs normal memory pressure and a Metal wired limit of at least 114688 MiB." >&2
-        return 1
-      fi
-      exec "$HY4_RUNTIME" --model "$(model_path "$id")" --alias "$(api_model "$id")" \
-        --port "$(port "$id")" -c "$(context_size "$id")" -np 1 --kv-unified -ngl all \
-        -fa on -ctk f16 -ctv f16 -b 2048 -ub 512 --cache-ram 0 \
-        --reasoning-format auto --reasoning-effort no_think --jinja --n-predict "$(output_size "$id")" \
-        --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-p-min 0 \
-        --spec-draft-n-ubatch 256 "$@" --host 127.0.0.1
-      ;;
-    qwen3.8-flash-next-iq-mlx-4.7bpw)
-      exec "$MODEL_HOME/runtime/mlx-serve-v26.11.1/mlx-serve-macos-arm64/mlx-serve" \
-        --model "$(model_path "$id")" --serve --host 127.0.0.1 --port "$(port "$id")" \
-        --ctx-size "$(context_size "$id")" --max-tokens "$(output_size "$id")" \
-        --reasoning-budget 2048 --no-mtp --no-pld --no-plugins "$@"
-      ;;
-    deepseek-v4.1-flash-sushi-stq-175)
-      exec "$MODEL_HOME/runtime/sushi-v1.4.0/sushi-macos-arm64/sushi" serve \
-        --model "$(model_path "$id")" --host 127.0.0.1 --port "$(port "$id")" \
-        --ctx-size "$(context_size "$id")" --max-tokens "$(output_size "$id")" \
-        --ssd-budget-gb 90 --no-vision --no-update-check "$@"
-      ;;
-    deepseek-v4.1-flash-sushi-stq-175-v2)
-      exec "$MODEL_HOME/runtime/sushi-v1.5.0/sushi-macos-arm64/sushi" serve \
-        --model "$(model_path "$id")" --host 127.0.0.1 --port "$(port "$id")" \
-        --ctx-size "$(context_size "$id")" --max-tokens "$(output_size "$id")" \
-        --ssd-budget-gb 90 --no-vision --no-update-check "$@"
-      ;;
-    qwen3.8-27b-abliterated-oq8e-mtp)
-      local qwen_state="$STATE_HOME/omlx/$id"
-      mkdir -p "$qwen_state/model-directory"
-      if [[ -e "$qwen_state/model-directory/qwen-oq8e" || -L "$qwen_state/model-directory/qwen-oq8e" ]]; then
-        [[ "$(readlink "$qwen_state/model-directory/qwen-oq8e")" == "$(model_path "$id")" ]] || { echo "Unexpected Qwen model alias" >&2; return 1; }
-      else
-        ln -s "$(model_path "$id")" "$qwen_state/model-directory/qwen-oq8e"
-      fi
-      cp "$MODELCTL_ROOT/config/qwen-oq8e-omlx-settings.json" "$qwen_state/model_settings.json"
-      exec /usr/bin/env HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \
-        "$MODEL_HOME/runtime/omlx-eval-20261023/.venv/bin/omlx" serve \
-        --model-dir "$qwen_state/model-directory" --host 127.0.0.1 --port "$(port "$id")" \
-        --base-path "$qwen_state" --headless --no-hf-cache --no-cache --max-concurrent-requests 1 "$@"
-      ;;
-    deepseek-v4.1-flash-maya-xs-64k)
-      local kv_dir="$STATE_HOME/kv/$id"
-      mkdir -p "$kv_dir"
-      cd "$MAYA_DS4_ROOT"
-      # Maya fits resident on Metal; only Engram remains disk-backed.
-      exec "$MAYA_DS4_ROOT/ds4-server" \
-        --backend metal --model "$(model_path "$id")" \
-        --ctx "$(context_size "$id")" --tokens "$(output_size "$id")" \
-        --prefill-chunk 512 --host 127.0.0.1 --port "$(port "$id")" \
-        --kv-disk-dir "$kv_dir" --kv-disk-space-mb 8192 "$@"
-      ;;
-    strands-decider-2b-v21)
-      exec /usr/bin/env \
-        "HF_HOME=$MODEL_HOME/cache/huggingface" "HF_HUB_OFFLINE=1" \
-        "$STRANDS_DECIDER_VENV/bin/strands-decider" serve "$STRANDS_DECIDER_DIR" \
-        --device mlx --host 127.0.0.1 --port "$(port "$id")" \
-        --model-name "$(api_model "$id")" --strict-window "$@"
-      ;;
-    mimo-v2.6-flash-sushi-2.3bpw)
-      exec "$SUSHI_MIMO_RUNTIME_ROOT/sushi" serve \
-        --model "$SUSHI_MIMO_MODEL_DIR" \
-        --host 127.0.0.1 --port "$(port "$id")" \
-        --ctx-size "$(context_size "$id")" \
-        --max-tokens "$(output_size "$id")" \
-        --kv-quant 8 --prefill-chunk 2048 \
-        --prefix-cache-mem 1GB \
-        --skip-mem-preflight \
-        --log-file off --no-update-check "$@"
-      ;;
-    qwen3.8-flash-next-iq2-mtp)
-      cd "$QWEN38_DS4_ROOT"
-      exec "$QWEN38_DS4_ROOT/ds4-server" \
-        --metal \
-        --model "$(model_path "$id")" \
-        --ple "$QWEN38_DS4_MODEL_DIR/$QWEN38_DS4_PLE" \
-        --ctx "$(context_size "$id")" \
-        --tokens "$(output_size "$id")" \
-        --prefill-chunk 1024 \
-        --mtp --mtp-exact-sampling \
-        --host 127.0.0.1 \
-        --port "$(port "$id")"
-      ;;
-    deepseek-v4.1-flash-q2-32k)
-      local kv_dir="$STATE_HOME/kv/$id"
-      mkdir -p "$kv_dir"
-      cd "$DEEPSEEK41_DS4_ROOT"
-      exec "$DEEPSEEK41_DS4_ROOT/ds4-server" \
-        --backend metal --ssd-streaming \
-        --model "$(model_path "$id")" \
-        --ctx "$(context_size "$id")" --tokens "$(output_size "$id")" \
-        --host 127.0.0.1 --port "$(port "$id")" \
-        --kv-disk-dir "$kv_dir" --kv-disk-space-mb 8192 "$@"
-      ;;
-    qwen3.8-27b)
-      require_qwen_variant_peer_stopped "$id"
-      exec llama-server \
-        --model "$MODEL_HOME/aliases/qwen3.8-27b/model.gguf" \
-        --mmproj "$MODEL_HOME/aliases/qwen3.8-27b/mmproj.gguf" \
-        --alias 'ggml-org/Qwen3.8-27B-GGUF:Q8_0' \
-        --gpu-layers all \
-        --flash-attn on \
-        --ctx-size 131072 \
-        --parallel 1 \
-        --host 127.0.0.1 \
-        --port 8080 \
-        --cors-origins localhost \
-        --temp 1.0 \
-        --top-p 0.95 \
-        --top-k 20 \
-        --min-p 0 \
-        --reasoning on \
-        --reasoning-preserve \
-        --image-min-tokens 1024 \
-        --chat-template-kwargs '{"reasoning_effort":"medium"}'
-      ;;
-    qwen3.8-27b-fixed-v22-4)
-      require_qwen_variant_peer_stopped "$id"
-      exec llama-server \
-        --model "$MODEL_HOME/aliases/qwen3.8-27b/model.gguf" \
-        --mmproj "$MODEL_HOME/aliases/qwen3.8-27b/mmproj.gguf" \
-        --alias 'qwen3.8-27b-q8-fixed-v22.4' \
-        --gpu-layers all \
-        --flash-attn on \
-        --ctx-size 131072 \
-        --parallel 1 \
-        --host 127.0.0.1 \
-        --port 8085 \
-        --cors-origins localhost \
-        --temp 1.0 \
-        --top-p 0.95 \
-        --top-k 20 \
-        --min-p 0 \
-        --jinja \
-        --chat-template-file "$QWEN_FIXED_TEMPLATE" \
-        --reasoning-format deepseek \
-        --reasoning-preserve \
-        --image-min-tokens 1024 \
-        --chat-template-kwargs '{"reasoning_effort":"medium"}'
-      ;;
-    signal-3.8-flash-next-iq4-xs)
-      require_signal_variant_peer_stopped "$id"
-      exec "$SIGNAL38_RUNTIME_ROOT/$SIGNAL38_RUNTIME_BUILD/bin/llama-server" \
-        --model "$SIGNAL38_MODEL_DIR/$SIGNAL38_MODEL" \
-        --mmproj "$SIGNAL38_MODEL_DIR/$SIGNAL38_MMPROJ" \
-        --alias 'signal-3.8-flash-next' \
-        --gpu-layers all --fit off --flash-attn on --lazy-mode on \
-        --ctx-size "$(context_size "$id")" --cache-type-k q8_0 --cache-type-v q8_0 \
-        --parallel 1 --host 127.0.0.1 --port "$(port "$id")" \
-        --cors-origins localhost --jinja \
-        --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0.05 \
-        --presence-penalty 0 --repeat-penalty 1.0 \
-        --reasoning on --reasoning-preserve --reasoning-effort medium \
-        --image-min-tokens 1024
-      ;;
-    signal-3.8-flash-next-iq4-xs-mtp)
-      require_signal_variant_peer_stopped "$id"
-      exec "$SIGNAL38_RUNTIME_ROOT/$SIGNAL38_RUNTIME_BUILD/bin/llama-server" \
-        --model "$SIGNAL38_MODEL_DIR/$SIGNAL38_MODEL" \
-        --mmproj "$SIGNAL38_MODEL_DIR/$SIGNAL38_MMPROJ" \
-        --alias 'signal-3.8-flash-next' \
-        --gpu-layers all --fit off --flash-attn on --lazy-mode on \
-        --ctx-size "$(context_size "$id")" --cache-type-k q8_0 --cache-type-v q8_0 \
-        --parallel 1 --host 127.0.0.1 --port "$(port "$id")" \
-        --cors-origins localhost --jinja \
-        --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0.05 \
-        --presence-penalty 0 --repeat-penalty 1.0 \
-        --reasoning on --reasoning-preserve --reasoning-effort medium \
-        --image-min-tokens 1024 \
-        --spec-type draft-mtp --model-draft "$SIGNAL38_MODEL_DIR/$SIGNAL38_MTP" \
-        --spec-draft-n-max 4 --no-spec-draft-backend-sampling
-      ;;
-    qwen3.8-27b-mlxfast-mtp)
-      exec "$MODEL_HOME/scripts/qwen38-mlxfast-mtp.sh" "$@"
-      ;;
-    qwen3.8-27b-mlxfast-mtp-server)
-      exec "$MODEL_HOME/scripts/qwen38-mlxfast-server.sh" "$@"
-      ;;
-    glm-5.3-flash-q2|glm-5.3-flash-q2-131k)
-      require_glm_variant_peer_stopped "$id"
-      local glm53_kv_dir="$STATE_HOME/kv/$id"
-      mkdir -p "$glm53_kv_dir"
-      cd "$GLM53_DS4_ROOT"
-      exec "$GLM53_DS4_ROOT/ds4-server" \
-        --backend metal \
-        --model "$(model_path "$id")" \
-        --ctx "$(context_size "$id")" \
-        --tokens "$(output_size "$id")" \
-        --host 127.0.0.1 \
-        --port "$(port "$id")" \
-        --kv-disk-dir "$glm53_kv_dir" \
-        --kv-disk-space-mb 8192
-      ;;
-    minimax-h3-standard|minimax-h3-heretic)
-      exec "$HOME/code/minimax-h3-mlx/runtime/mlx-serve" \
-        --model "$(model_path "$id")" \
-        --serve \
-        --host 127.0.0.1 \
-        --port "$(port "$id")" \
-        --timeout 0
-      ;;
-    muse-glimmer-30b-server)
-      exec llama-server \
-        --model "$(model_path "$id")/Muse-Glimmer-30B-KQuant-Dynamic-Q4_K_XL.gguf" \
-        --mmproj "$(model_path "$id")/mmproj-Muse-Glimmer-30B-Q4_K_M.gguf" \
-        --alias muse-glimmer \
-        --gpu-layers all \
-        --flash-attn on \
-        --ctx-size 131072 \
-        --parallel 1 \
-        --host 127.0.0.1 \
-        --port 8082 \
-        --jinja \
-        --temp 1.0 \
-        --top-p 0.95 \
-        --top-k 64 \
-        --chat-template-kwargs '{"reasoning_strength":"low"}'
-      ;;
-    muse-glimmer-30b)
-      export HF_HOME="${HF_HOME:-$MODEL_HOME/cache/huggingface}"
-      MUSE_GLIMMER_MODEL_PATH="$(model_path "$id")"
-      export MUSE_GLIMMER_MODEL_PATH
-      cd "$MUSE_GLIMMER_HARNESS_DIR"
-      exec "$MUSE_GLIMMER_HARNESS_VENV/bin/python" run_agent.py "$@"
-      ;;
-    *)
-      echo "$id is an asset collection and does not have a standalone server." >&2
-      exit 2
-      ;;
-  esac
-}
-
-status_one() {
-  local id="$1"
-  local model_kind
-  local state
-  model_kind="$(kind "$id")"
-  if [[ "$model_kind" != service ]]; then
-    if ready "$id"; then
-      case "$id" in
-        mererun-*) state=managed ;;
-        *) state=ready ;;
-      esac
-    else
-      state=missing
-    fi
-    printf '%-29s %-9s %s\n' "$id" "$state" "$(model_path "$id")"
-    return
-  fi
-
-  if service_loaded "$id"; then
-    local pid
-    pid="$(service_pid "$id")"
-    if healthy "$id"; then
-      state=running
-    elif [[ -n "$pid" ]]; then
-      state=starting
-    else
-      state=failed
-    fi
-    printf '%-29s %-9s pid=%s port=%s\n' "$id" "$state" "${pid:-unknown}" "$(port "$id")"
-    return
-  fi
-
-  if listening "$id"; then
-    printf '%-29s %-9s port=%s (not managed by modelctl)\n' "$id" external "$(port "$id")"
-  elif ready "$id"; then
-    printf '%-29s %-9s port=%s\n' "$id" stopped "$(port "$id")"
-  else
-    printf '%-29s %-9s %s\n' "$id" missing "$(model_path "$id")"
-  fi
-}
-
-startup_timeout() {
-  case "$1" in
-    hy4-flash-q4-k-m) echo 300 ;;
-    qwen3.8-flash-next-iq-mlx-4.7bpw) echo 900 ;;
-    deepseek-v4.1-flash-sushi-stq-175) echo 900 ;;
-    deepseek-v4.1-flash-sushi-stq-175-v2) echo 900 ;;
-    qwen3.8-27b-abliterated-oq8e-mtp) echo 600 ;;
-    deepseek-v4.1-flash-maya-xs-64k) echo 300 ;;
-    strands-decider-2b-v21) echo 180 ;;
-    mimo-v2.6-flash-sushi-2.3bpw) echo 900 ;;
-    qwen3.8-flash-next-iq2-mtp) echo 180 ;;
-    deepseek-v4.1-flash-q2-32k) echo 180 ;;
-    signal-3.8-flash-next-iq4-xs|signal-3.8-flash-next-iq4-xs-mtp) echo 900 ;;
-    qwen3.8-27b-mlxfast-mtp-server) echo 600 ;;
-    glm-5.3-flash-q2|glm-5.3-flash-q2-131k) echo 180 ;;
-    *) echo 45 ;;
-  esac
-}
-
-start_model() {
-  local id="$1"
-  local log_file="$LOG_DIR/$id.log"
-  local launch_label
-  local self
-
-  case "$(kind "$id")" in
-    harness)
-      echo "$id is an interactive harness, not a model server." >&2
-      echo "Run it in the foreground with: modelctl run $id [ARGS]" >&2
-      exit 2
-      ;;
-    asset)
-      echo "$id is an asset collection and cannot be started." >&2
-      exit 2
-      ;;
-  esac
-  if ! ready "$id"; then
-    echo "Model or runtime is incomplete: $(model_path "$id")" >&2
-    exit 1
-  fi
-  require_qwen_variant_peer_stopped "$id"
-  require_signal_variant_peer_stopped "$id"
-  require_glm_variant_peer_stopped "$id"
-  require_large_model_exclusive "$id"
-  if listening "$id"; then
-    echo "$id already has a listener on port $(port "$id")."
-    status_one "$id"
-    return
-  fi
-
-  launch_label="$(service_label "$id")"
-  if service_loaded "$id"; then
-    if [[ -n "$(service_pid "$id")" ]]; then
-      echo "$id already has a loaded launch service."
-      status_one "$id"
-      return
-    fi
-    launchctl remove "$launch_label" >/dev/null 2>&1 || true
-  fi
-
-  self="$(command -v modelctl 2>/dev/null || true)"
-  if [[ -z "$self" ]]; then self="$0"; fi
-  if [[ "$self" != /* ]]; then self="$PWD/$self"; fi
-
-  launchctl submit \
-    -l "$launch_label" \
-    -o "$log_file" \
-    -e "$log_file" \
-    -- /usr/bin/env \
-      "MODEL_HOME=$MODEL_HOME" \
-      "LOCAL_MODEL_STATE_HOME=$STATE_HOME" \
-      "DEEPSEEK41_DS4_ROOT=$DEEPSEEK41_DS4_ROOT" \
-      "MAYA_DS4_ROOT=$MAYA_DS4_ROOT" \
-      "GLM53_DS4_ROOT=$GLM53_DS4_ROOT" \
-      "SIGNAL38_RUNTIME_ROOT=$SIGNAL38_RUNTIME_ROOT" \
-      "QWEN38_DS4_ROOT=$QWEN38_DS4_ROOT" \
-      "SUSHI_MIMO_RUNTIME_ROOT=$SUSHI_MIMO_RUNTIME_ROOT" \
-      "STRANDS_DECIDER_SOURCE=$STRANDS_DECIDER_SOURCE" \
-      "STRANDS_DECIDER_VENV=$STRANDS_DECIDER_VENV" \
-      "PATH=$PATH" \
-      "$self" __run "$id"
-
-  local empty_pid_checks=0
-  for _ in $(seq 1 "$(startup_timeout "$id")"); do
-    if healthy "$id"; then
-      echo "Started $id on http://127.0.0.1:$(port "$id") (PID $(service_pid "$id"))"
-      echo "Log: $log_file"
-      return
-    fi
-    if ! service_loaded "$id"; then
-      echo "$id exited during startup. Recent log output:" >&2
-      tail -40 "$log_file" >&2 || true
-      exit 1
-    fi
-    if [[ -z "$(service_pid "$id")" ]]; then
-      empty_pid_checks=$((empty_pid_checks + 1))
-      if (( empty_pid_checks >= 5 )); then
-        launchctl remove "$launch_label" >/dev/null 2>&1 || true
-        echo "$id exited during startup. Recent log output:" >&2
-        tail -40 "$log_file" >&2 || true
-        exit 1
-      fi
-    else
-      empty_pid_checks=0
-    fi
-    sleep 1
-  done
-
-  echo "$id is still starting in the background (PID $(service_pid "$id"))."
-  echo "Check with: modelctl status $id"
-  echo "Log: $log_file"
-}
-
-stop_model() {
-  local id="$1"
-  local launch_label
-  launch_label="$(service_label "$id")"
-
-  if ! service_loaded "$id"; then
-    if listening "$id"; then
-      echo "$id is running outside modelctl; refusing to stop an unmanaged process." >&2
-      exit 1
-    fi
-    echo "$id is not running."
-    return
-  fi
-
-  launchctl remove "$launch_label"
-  for _ in $(seq 1 15); do
-    if ! service_loaded "$id" && ! listening "$id"; then
-      echo "Stopped $id."
-      return
-    fi
-    sleep 1
-  done
-
-  echo "$id did not stop after 15 seconds." >&2
-  exit 1
-}
-
-doctor() {
-  local requested_id="${1:-}"
-  local failures=0
-
-  if [[ -n "$requested_id" ]]; then
-    known_model "$requested_id" || { echo "Unknown model: $requested_id" >&2; return 2; }
-    if ! ready "$requested_id"; then
-      echo "missing $requested_id -> $(model_path "$requested_id")"
-      return 1
-    fi
-    if [[ "$requested_id" == qwen3.8-flash-next-iq2-mtp ]]; then
-      local model_hash ple_hash
-      model_hash="$(openssl dgst -sha256 "$(model_path "$requested_id")" | awk '{print $NF}')"
-      ple_hash="$(openssl dgst -sha256 "$QWEN38_DS4_MODEL_DIR/$QWEN38_DS4_PLE" | awk '{print $NF}')"
-      [[ "$model_hash" == 31f1e193771a5f3fdaa7af5865e0417513e8e8cac37579d388052ca54c889d4b &&
-        "$ple_hash" == 66db3ab390f4dd5063ecc89cc180f4713898577682347001bf64ab8e328527a1 ]] || {
-        echo "Qwen3.8 DwarfStar model or PLE SHA-256 mismatch." >&2
-        return 1
-      }
-    fi
-    if [[ "$requested_id" == mimo-v2.6-flash-sushi-2.3bpw ]]; then
-      local actual_sha256 expected_sha256 actual_blob expected_blob name file_size
-      actual_sha256="$(shasum -a 256 "$SUSHI_MIMO_RUNTIME_ROOT/sushi" | awk '{print $1}')"
-      [[ "$actual_sha256" == 787ceffca0352ad38fb08fe1db43fa876d43019420c57bd8e12e3388f03695d2 ]] || {
-        echo "Sushi v1.2.1 executable SHA-256 mismatch: $actual_sha256" >&2
-        return 1
-      }
-      while IFS=$'\t' read -r expected_sha256 name; do
-        actual_sha256="$(shasum -a 256 "$SUSHI_MIMO_MODEL_DIR/$name" | awk '{print $1}')"
-        [[ "$actual_sha256" == "$expected_sha256" ]] || {
-          echo "MiMo Sushi SHA-256 mismatch: $name" >&2
-          return 1
-        }
-      done < <(jq -r '.files[] | select(.sha256 != null) | [.sha256, .path] | @tsv' "$SUSHI_MIMO_MANIFEST")
-      while IFS=$'\t' read -r expected_blob name; do
-        file_size="$(/usr/bin/stat -f '%z' "$SUSHI_MIMO_MODEL_DIR/$name")"
-        actual_blob="$( { printf 'blob %s\0' "$file_size"; cat "$SUSHI_MIMO_MODEL_DIR/$name"; } | shasum -a 1 | awk '{print $1}')"
-        [[ "$actual_blob" == "$expected_blob" ]] || {
-          echo "MiMo Sushi Git blob mismatch: $name" >&2
-          return 1
-        }
-      done < <(jq -r '.files[] | select(.sha256 == null and .git_blob != null) | [.git_blob, .path] | @tsv' "$SUSHI_MIMO_MANIFEST")
-    fi
-    if [[ "$requested_id" == strands-decider-2b-v21 ]]; then
-      local root expected name actual path file_size
-      git -C "$STRANDS_DECIDER_SOURCE" diff --quiet HEAD -- || {
-        echo "Strands Decider source checkout has local changes." >&2
-        return 1
-      }
-      jq -e --arg revision "$STRANDS_DECIDER_BASE_REVISION" \
-        '.base_model == "Qwen/Qwen3.5-2B-Base" and .base_model_revision == $revision' \
-        "$STRANDS_DECIDER_DIR/provenance.json" >/dev/null || return 1
-      while IFS=$'\t' read -r root expected name; do
-        path="$MODEL_HOME/$root/$name"
-        actual="$(shasum -a 256 "$path" | awk '{print $1}')"
-        [[ "$actual" == "$expected" ]] || {
-          echo "Strands Decider SHA-256 mismatch: $root/$name" >&2
-          return 1
-        }
-      done < <(jq -r '.repos[] | .path as $root | .files[] | select(.sha256 != null) | [$root, .sha256, .path] | @tsv' "$STRANDS_DECIDER_MANIFEST")
-      while IFS=$'\t' read -r root expected name; do
-        path="$MODEL_HOME/$root/$name"
-        file_size="$(/usr/bin/stat -f '%z' "$path")"
-        actual="$( { printf 'blob %s\0' "$file_size"; cat "$path"; } | shasum -a 1 | awk '{print $1}')"
-        [[ "$actual" == "$expected" ]] || {
-          echo "Strands Decider Git blob mismatch: $root/$name" >&2
-          return 1
-        }
-      done < <(jq -r '.repos[] | .path as $root | .files[] | select(.sha256 == null) | [$root, .git_blob, .path] | @tsv' "$STRANDS_DECIDER_MANIFEST")
-      "$STRANDS_DECIDER_VENV/bin/python" -m strands_decider.hf_export verify "$STRANDS_DECIDER_DIR" || return 1
-    fi
-    if [[ "$requested_id" == muse-glimmer-30b ]]; then
-      if ! "$MUSE_GLIMMER_HARNESS_VENV/bin/python" \
-        "$MUSE_GLIMMER_HARNESS_DIR/response_parser.py"; then
-        echo "Muse Glimmer parser checks failed." >&2
-        return 1
-      fi
-    fi
-    if [[ "$requested_id" == glm-5.3-flash-q2 || "$requested_id" == glm-5.3-flash-q2-131k ]]; then
-      local actual_sha256
-      actual_sha256="$(shasum -a 256 "$(model_path "$requested_id")" | awk '{ print $1 }')"
-      if [[ "$actual_sha256" != "$GLM53_MODEL_SHA256" ]]; then
-        echo "GLM 5.3 model SHA-256 mismatch: $actual_sha256" >&2
-        return 1
-      fi
-    fi
-    if [[ "$requested_id" == deepseek-v4.1-flash-q2-32k ]]; then
-      local actual_sha256
-      actual_sha256="$(openssl dgst -sha256 "$(model_path "$requested_id")" | awk '{print $NF}')"
-      if [[ "$actual_sha256" != "$DEEPSEEK41_MODEL_SHA256" ]]; then
-        echo "DeepSeek V4.1 model SHA-256 mismatch: $actual_sha256" >&2
-        return 1
-      fi
-    fi
-    if [[ "$requested_id" == deepseek-v4.1-flash-maya-xs-64k ]]; then
-      local actual_sha256
-      actual_sha256="$(openssl dgst -sha256 "$(model_path "$requested_id")" | awk '{print $NF}')"
-      if [[ "$actual_sha256" != "$MAYA_MODEL_SHA256" ]]; then
-        echo "Maya-XS model SHA-256 mismatch: $actual_sha256" >&2
-        return 1
-      fi
-    fi
-    if [[ "$requested_id" == signal-3.8-flash-next-iq4-xs || "$requested_id" == signal-3.8-flash-next-iq4-xs-mtp ]]; then
-      local signal_model_sha256 signal_mmproj_sha256 signal_mtp_sha256
-      signal_model_sha256="$(shasum -a 256 "$SIGNAL38_MODEL_DIR/$SIGNAL38_MODEL" | awk '{ print $1 }')"
-      signal_mmproj_sha256="$(shasum -a 256 "$SIGNAL38_MODEL_DIR/$SIGNAL38_MMPROJ" | awk '{ print $1 }')"
-      [[ "$signal_model_sha256" == "$SIGNAL38_MODEL_SHA256" ]] || {
-        echo "Signal model SHA-256 mismatch: $signal_model_sha256" >&2
-        return 1
-      }
-      [[ "$signal_mmproj_sha256" == "$SIGNAL38_MMPROJ_SHA256" ]] || {
-        echo "Signal vision projector SHA-256 mismatch: $signal_mmproj_sha256" >&2
-        return 1
-      }
-      if [[ "$requested_id" == signal-3.8-flash-next-iq4-xs-mtp ]]; then
-        signal_mtp_sha256="$(shasum -a 256 "$SIGNAL38_MODEL_DIR/$SIGNAL38_MTP" | awk '{ print $1 }')"
-        [[ "$signal_mtp_sha256" == "$SIGNAL38_MTP_SHA256" ]] || {
-          echo "Signal MTP draft SHA-256 mismatch: $signal_mtp_sha256" >&2
-          return 1
-        }
-      fi
-    fi
-    echo "All checks passed for $requested_id."
-    return
-  fi
-
-  for command_name in curl lsof shasum; do
-    if ! command -v "$command_name" >/dev/null 2>&1; then
-      echo "missing command: $command_name"
-      failures=$((failures + 1))
-    fi
-  done
-  if ! command -v llama-server >/dev/null 2>&1; then
-    echo "missing command: llama-server"
-    failures=$((failures + 1))
-  fi
-
-  while IFS= read -r id; do
-    if ready "$id"; then
-      echo "ok      $id"
-    else
-      echo "missing $id -> $(model_path "$id")"
-      failures=$((failures + 1))
-    fi
-  done < <(models)
-
-  if (( failures > 0 )); then
-    echo "$failures check(s) failed." >&2
-    exit 1
-  fi
-  echo "All model checks passed."
-}
-
-usage() {
-  cat <<'EOF'
-Usage: modelctl COMMAND [MODEL]
-
-Commands:
-  list                 Show all installed model services and assets
-  status [MODEL]       Show all statuses, or one model's status
-  start MODEL          Start a model server in the background
-  run MODEL [ARGS]     Run a model server or interactive harness in the foreground
-  stop MODEL           Stop a server started by modelctl
-  logs MODEL           Follow a model server log
-  path MODEL           Print the canonical model path
-  endpoint MODEL [--json]
-                       Print service endpoint metadata
-  omp MODEL [OMP_ARGS]
-                       Run OMP with generated model metadata; owns server lifecycle when needed
+#!/usr/bin/env python3
+"""Local model control: one front end over catalog-driven and legacy profiles.
+
+Models in models.toml with a [models.launch] table are started from that data.
+Every other profile is owned by modelctl-legacy, which this command calls.
+"""
+import sys
+
+if sys.version_info < (3, 11):
+    sys.exit('modelctl needs Python 3.11 or newer; found ' + sys.version.split()[0])
+
+import concurrent.futures
+import contextlib
+import difflib
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import signal
+import subprocess
+import tempfile
+import time
+import tomllib
+import urllib.request
+
+ROOT = Path(__file__).resolve().parents[1]
+LEGACY = ROOT / 'bin/modelctl-legacy'
+CATALOG = Path(os.environ.get('MODELCTL_CATALOG', ROOT / 'models.toml'))
+MODEL_HOME = Path(os.environ.get('MODEL_HOME', Path.home() / 'models'))
+STATE = Path(os.environ.get('LOCAL_MODEL_STATE_HOME',
+                            Path.home() / 'Library/Application Support/local-models'))
+LOGS = STATE / 'logs'
+CACHE = STATE / 'cache/modelctl.json'
+READY_TTL = 6 * 3600
+UNMANAGED_LIMIT_GIB = 8
+HARNESSES = ('omp', 'pi')
+GIB = 1024 ** 3
+
+USAGE = '''\
+Usage: modelctl [COMMAND] [MODEL] [OPTIONS]
+
+See what's here
+  (no command)            Show what is running
+  list [--all]            Show models; --all adds assets and missing entries
+  status [MODEL]          Show one model in detail, or what is running
+
+Run a model
+  start MODEL             Start a server in the background
+  stop MODEL              Stop a server started by modelctl
+  run MODEL [ARGS]        Run a server or interactive harness in the foreground
+  logs MODEL              Follow a server log
+
+Open a harness
+  use HARNESS MODEL [ARGS]
+                          Start the model if needed, then open omp or pi here.
+                          A server that use started stops when the last session exits.
+  omp MODEL [OMP_ARGS]    Run OMP with generated model metadata
   dsh MODEL [--prepare] [web|headless] [DSH_ARGS]
-                       Run PTC against an already-running server; default: web
-  doctor [MODEL]       Validate all models, or one model and its runtime
-EOF
-}
+                          Run PTC against an already-running server; default: web
 
-command_name="${1:-}"
-case "$command_name" in
-  list)
-    printf '%-29s %-9s %s\n' MODEL STATUS LOCATION
-    while IFS= read -r id; do status_one "$id"; done < <(models)
-    ;;
-  status)
-    if [[ -n "${2:-}" ]]; then
-      known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
-      status_one "$2"
-    else
-      while IFS= read -r id; do status_one "$id"; done < <(models)
-    fi
-    ;;
-  start)
-    [[ -n "${2:-}" ]] || { usage >&2; exit 2; }
-    known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
-    start_model "$2"
-    ;;
-  run)
-    [[ -n "${2:-}" ]] || { usage >&2; exit 2; }
-    known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
-    id="$2"
-    shift 2
-    if [[ "$id" != qwen3.8-27b-mlxfast-mtp-server || "${1:-}" != --build ]]; then
-      ready "$id" || { echo "Model or runtime is incomplete: $(model_path "$id")" >&2; exit 1; }
-    fi
-    run_model "$id" "$@"
-    ;;
-  stop)
-    [[ -n "${2:-}" ]] || { usage >&2; exit 2; }
-    known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
-    [[ "$(kind "$2")" == service ]] || { echo "$2 is not a model server." >&2; exit 2; }
-    stop_model "$2"
-    ;;
-  logs)
-    [[ -n "${2:-}" ]] || { usage >&2; exit 2; }
-    known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
-    [[ "$(kind "$2")" == service ]] || { echo "$2 is not a model server and has no managed log." >&2; exit 2; }
-    touch "$LOG_DIR/$2.log"
-    exec tail -f "$LOG_DIR/$2.log"
-    ;;
-  path)
-    [[ -n "${2:-}" ]] || { usage >&2; exit 2; }
-    known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
-    model_path "$2"
-    ;;
-  endpoint)
-    [[ -n "${2:-}" ]] || { usage >&2; exit 2; }
-    known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
-    endpoint "$2" "${3:-text}"
-    ;;
-  omp)
-    [[ -n "${2:-}" ]] || { usage >&2; exit 2; }
-    known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
-    [[ "$(kind "$2")" == service ]] || { echo "$2 is not a model server." >&2; exit 2; }
-    id="$2"
-    shift 2
-    run_omp "$id" "$@"
-    ;;
-  dsh)
-    [[ -n "${2:-}" ]] || { usage >&2; exit 2; }
-    known_model "$2" || { echo "Unknown model: $2" >&2; exit 2; }
-    id="$2"
-    shift 2
-    run_dsh "$id" "$@"
-    ;;
-  doctor)
-    doctor "${2:-}"
-    ;;
-  __run)
-    [[ -n "${2:-}" ]] || exit 2
-    run_model "$2"
-    ;;
-  __complete)
-    [[ "${2:-}" == all || "${2:-}" == models || "${2:-}" == runnable || "${2:-}" == services || "${2:-}" == omp ]] || exit 2
-    completion_models "$2"
-    ;;
-  help|-h|--help|'')
-    usage
-    ;;
-  *)
-    echo "Unknown command: $command_name" >&2
-    usage >&2
-    exit 2
-    ;;
-esac
+Inspect
+  path MODEL              Print the canonical model path
+  endpoint MODEL [--json] Print service endpoint metadata
+  doctor [MODEL]          Verify all models, or one model and its runtime
+
+Options
+  --json                  Machine-readable output (list, status, endpoint)
+  --refresh               Recheck installed files instead of using cached results (list)
+  --quiet                 Hide progress (start, stop, use)
+  --force                 Start even if an unmanaged server is using memory (start)
+  NO_COLOR=1              Disable color
+
+When piped, status keeps its original one-line-per-model format for scripts.
+'''
+
+
+class Failure(Exception):
+    def __init__(self, message, code=1):
+        super().__init__(message)
+        self.code = code
+
+
+# ---- output -----------------------------------------------------------------
+
+class Out:
+    quiet = False
+
+    @staticmethod
+    def color(stream):
+        return stream.isatty() and 'NO_COLOR' not in os.environ and os.environ.get('TERM') != 'dumb'
+
+
+def paint(text, code, stream=None):
+    return f'\033[{code}m{text}\033[0m' if Out.color(stream or sys.stdout) else text
+
+
+def step(text, ok=True, stream=None):
+    if Out.quiet and ok:
+        return
+    stream = stream or sys.stderr
+    print(paint('✓' if ok else '!', '32' if ok else '33', stream), text, file=stream, flush=True)
+
+
+@contextlib.contextmanager
+def spinner(text, log=None):
+    """Yield a tick() that redraws elapsed time on a terminal and stays quiet elsewhere."""
+    started = time.monotonic()
+    live = sys.stderr.isatty() and not Out.quiet
+    frames = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    count = 0
+    if not live and not Out.quiet:
+        print(f'{text}…', file=sys.stderr, flush=True)
+
+    def tick():
+        nonlocal count
+        if live:
+            hint = f'  log: {short_path(log)}' if log else ''
+            line = f'{frames[count % len(frames)]} {text}… {elapsed(time.monotonic() - started)}{hint}'
+            width = shutil.get_terminal_size().columns - 1
+            sys.stderr.write('\r\033[K' + line[:width])
+            sys.stderr.flush()
+            count += 1
+    try:
+        yield tick
+    finally:
+        if live:
+            sys.stderr.write('\r\033[K')
+            sys.stderr.flush()
+
+
+def elapsed(seconds):
+    seconds = int(seconds)
+    if seconds < 3600:
+        return f'{seconds // 60}:{seconds % 60:02d}'
+    if seconds < 86400:
+        return f'{seconds // 3600}h {seconds % 3600 // 60:02d}m'
+    return f'{seconds // 86400}d {seconds % 86400 // 3600}h'
+
+
+def short_path(path):
+    text = str(path)
+    home = str(Path.home())
+    return '~' + text[len(home):] if text.startswith(home) else text
+
+
+def size_text(count):
+    return f'{count / GIB:.0f} G' if count and count >= GIB else (f'{count / 1024 ** 2:.0f} M' if count else '-')
+
+
+def context_text(count):
+    return f'{count // 1024}K' if count else '-'
+
+
+def table(rows, header, flex=None):
+    """Aligned columns; column `flex` shrinks to fit a terminal."""
+    widths = [max(len(str(r[i])) for r in [header, *rows]) for i in range(len(header))]
+    if flex is not None and sys.stdout.isatty():
+        spare = shutil.get_terminal_size().columns - sum(widths) - 2 * (len(widths) - 1)
+        if spare < 0:
+            widths[flex] = max(12, widths[flex] + spare)
+
+    def line(row):
+        cells = []
+        for i, cell in enumerate(row):
+            text = str(cell)
+            if len(text) > widths[i]:
+                text = text[:widths[i] - 1] + '…'
+            cells.append(text.ljust(widths[i]))
+        return '  '.join(cells).rstrip()
+    print(paint(line(header), '2'))
+    return [line(row) for row in rows]
+
+
+# ---- catalog ----------------------------------------------------------------
+
+class Model:
+    def __init__(self, entry, meta=None):
+        self.entry = entry
+        self.launch = entry.get('launch')
+        self.data = self.launch is not None
+        self.id = entry['id']
+        self.alias = entry.get('alias')
+        if self.data:
+            self.label, self.kind = entry['name'], 'service'
+            self.port, self.api = entry['port'], entry['api_model']
+            self.context, self.output = entry['context'], entry['output']
+            self.path = MODEL_HOME / entry['path']
+        else:
+            _, self.label, self.kind, port, self.api, context, output, path = meta
+            self.port = int(port) if port else None
+            self.context = int(context) if context else None
+            self.output = int(output) if output else None
+            self.path = Path(path)
+
+    @property
+    def name(self):
+        return self.alias or self.id
+
+    @property
+    def service(self):
+        return f'com.fcoury.local-models.{self.id.replace(".", "_")}'
+
+    @property
+    def log(self):
+        return LOGS / f'{self.id}.log'
+
+    @property
+    def base_url(self):
+        return f'http://127.0.0.1:{self.port}/v1'
+
+    @property
+    def runtime(self):
+        name = re.split(r' [\d(]| with | Swift', self.entry.get('runner', '-'))[0]
+        return {'DwarfStar': 'ds4', 'strands-decider MLX': 'mlx'}.get(name, name)
+
+    @property
+    def title(self):
+        return re.sub(r' \([^)]*\)$', '', self.label)
+
+    # Catalog-driven profiles only.
+    @property
+    def manifest(self):
+        return json.loads((ROOT / self.entry['manifest']).read_text())
+
+    @property
+    def binary(self):
+        return MODEL_HOME / self.entry['runtime_path']
+
+    @property
+    def receipt(self):
+        return STATE / f'verification/{self.id}.json'
+
+    def command(self):
+        launch = self.launch
+        if launch['engine'] != 'llama.cpp':
+            raise Failure(f'{self.name} uses unsupported engine {launch["engine"]}.')
+        command = [str(self.binary), '--model', str(self.path), '--alias', self.api,
+                   '--host', '127.0.0.1', '--port', str(self.port),
+                   '--ctx-size', str(self.context * launch['slots']),
+                   '--parallel', str(launch['slots'])]
+        if launch.get('mmproj'):
+            command += ['--mmproj', str(MODEL_HOME / launch['mmproj'])]
+        return command + launch['args']
+
+
+def run_legacy(*args, **kwargs):
+    return subprocess.run([str(LEGACY), *map(str, args)], **kwargs)
+
+
+def exec_legacy(*args):
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os.execv(LEGACY, [str(LEGACY), *map(str, args)])
+
+
+def signature(*paths):
+    parts = []
+    for path in paths:
+        try:
+            info = os.stat(path)
+            parts.append(f'{info.st_mtime_ns}:{info.st_size}:{info.st_ino}')
+        except OSError:
+            parts.append('missing')
+    return '|'.join(parts)
+
+
+def load_cache():
+    try:
+        data = json.loads(CACHE.read_text())
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def write_json(path, data):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle, temporary = tempfile.mkstemp(dir=path.parent, prefix=path.name)
+    with os.fdopen(handle, 'w') as out:
+        json.dump(data, out, indent=2)
+        out.write('\n')
+    os.replace(temporary, path)
+
+
+def save_cache(cache):
+    with contextlib.suppress(OSError):
+        write_json(CACHE, cache)
+
+
+class Catalog:
+    def __init__(self):
+        entries = {m['id']: m for m in tomllib.loads(CATALOG.read_text())['models']}
+        self.cache = load_cache()
+        key = f'{signature(LEGACY)}|{MODEL_HOME}'
+        if self.cache.get('metadata_key') != key:
+            result = run_legacy('__metadata', capture_output=True, text=True)
+            if result.returncode:
+                raise Failure('Could not read legacy profiles:\n' + result.stderr.strip())
+            self.cache['metadata'] = [l.split('\t') for l in result.stdout.splitlines()]
+            self.cache['metadata_key'] = key
+            if sys.argv[1:2] not in (['__complete'], ['__names']):
+                save_cache(self.cache)
+        rows = self.cache['metadata']
+        self.models = [Model(entries.get(r[0], {'id': r[0]}), r) for r in rows]
+        self.models += [Model(e) for e in entries.values() if 'launch' in e]
+        self.by_name = {}
+        for model in self.models:
+            for name in filter(None, (model.id, model.alias)):
+                if name in self.by_name:
+                    raise Failure(f'{CATALOG}: the name "{name}" is used twice.')
+                self.by_name[name] = model
+
+    def get(self, name):
+        if name in self.by_name:
+            return self.by_name[name]
+        close = difflib.get_close_matches(name, self.by_name, n=3, cutoff=0.5)
+        hint = f' Did you mean {" or ".join(close)}?' if close else ' See: modelctl list'
+        raise Failure(f'Unknown model: {name}.{hint}', 2)
+
+    def readiness(self, refresh=False):
+        """Installed state and size per model, cached because legacy checks hash runtimes."""
+        stored = self.cache.setdefault('ready', {})
+        now = time.time()
+
+        def check(model):
+            key = (signature(CATALOG, model.path, model.binary, model.receipt) if model.data
+                   else signature(LEGACY, model.path))
+            old = stored.get(model.id)
+            if not refresh and old and old['key'] == key and now - old['at'] < READY_TTL:
+                return model.id, old
+            return model.id, dict(key=key, at=now, ready=is_ready(model), size=disk_size(model))
+        with concurrent.futures.ThreadPoolExecutor(8) as pool:
+            fresh = dict(pool.map(check, self.models))
+        if fresh != stored:
+            self.cache['ready'] = fresh
+            save_cache(self.cache)
+        return fresh
+
+
+def disk_size(model):
+    if model.data:
+        return sum(f['size'] for f in model.manifest['files'])
+    if model.entry.get('bytes'):
+        return model.entry['bytes']
+    try:
+        if model.path.is_file():
+            return model.path.stat().st_size
+        return sum(os.stat(os.path.join(base, f)).st_size
+                   for base, _, files in os.walk(model.path) for f in files
+                   if os.path.exists(os.path.join(base, f)))
+    except OSError:
+        return 0
+
+
+# ---- verification -----------------------------------------------------------
+
+def sha256(path):
+    with open(path, 'rb') as handle:
+        return hashlib.file_digest(handle, 'sha256').hexdigest()
+
+
+def file_problems(model):
+    """Cheap check: every pinned file is present at its pinned size and fully transferred."""
+    problems = []
+    for row in model.manifest['files']:
+        path = model.path.parent / row['path']
+        if not path.is_file():
+            problems.append(f'missing {short_path(path)}')
+        elif path.stat().st_size != row['size']:
+            problems.append(f'wrong size {short_path(path)}')
+        if path.with_name(path.name + '.aria2').exists():
+            problems.append(f'incomplete transfer {short_path(path)}')
+    if not os.access(model.binary, os.X_OK):
+        problems.append(f'missing runtime {short_path(model.binary)}')
+    return problems
+
+
+def runtime_matches(model):
+    """The runtime hash is cached against the file's identity, so a rebuild is always rehashed."""
+    if not model.binary.is_file():
+        return False
+    path = STATE / 'cache/runtime.json'
+    try:
+        cache = json.loads(path.read_text())
+    except (OSError, ValueError):
+        cache = {}
+    key = signature(model.binary)
+    if cache.get(str(model.binary), [None])[0] != key:
+        cache[str(model.binary)] = [key, sha256(model.binary)]
+        with contextlib.suppress(OSError):
+            write_json(path, cache)
+    return cache[str(model.binary)][1] == model.entry['runtime_sha256']
+
+
+def receipt_ok(model):
+    """A receipt from doctor covers these exact files: same pins, unchanged since hashing."""
+    try:
+        receipt = json.loads(model.receipt.read_text())
+    except (OSError, ValueError):
+        return False
+    expected = {f['path']: f['sha256'] for f in model.manifest['files']}
+    return (receipt.get('revision') == model.manifest['revision']
+            and receipt.get('sha256') == expected
+            and receipt.get('signature') == {
+                name: signature(model.path.parent / name) for name in expected})
+
+
+def is_ready(model):
+    if model.data:
+        return not file_problems(model) and runtime_matches(model) and receipt_ok(model)
+    return run_legacy('__ready', model.id, stdout=subprocess.DEVNULL,
+                      stderr=subprocess.DEVNULL).returncode == 0
+
+
+def verify(model):
+    problems = file_problems(model)
+    if problems:
+        raise Failure(f'{model.name} is incomplete: ' + '; '.join(problems))
+    if not runtime_matches(model):
+        raise Failure(f'{model.name} runtime does not match its pinned SHA-256: {model.binary}')
+    if not receipt_ok(model):
+        raise Failure(f'{model.name} has not been verified since its files changed. '
+                      f'Run: modelctl doctor {model.name}')
+
+
+def doctor(model):
+    problems = file_problems(model)
+    if problems:
+        raise Failure('\n'.join(problems))
+    if not runtime_matches(model):
+        raise Failure(f'runtime SHA-256 mismatch: {model.binary}')
+    expected, signatures = {}, {}
+    for row in model.manifest['files']:
+        path = model.path.parent / row['path']
+        before = signature(path)
+        with spinner(f'Hashing {row["path"]}') as tick, \
+                concurrent.futures.ThreadPoolExecutor(1) as pool:
+            job = pool.submit(sha256, path)
+            while not job.done():
+                tick()
+                time.sleep(0.1)
+        if job.result() != row['sha256'] or signature(path) != before:
+            model.receipt.unlink(missing_ok=True)
+            raise Failure(f'SHA-256 mismatch: {path}')
+        expected[row['path']], signatures[row['path']] = row['sha256'], before
+    write_json(model.receipt, dict(id=model.id, revision=model.manifest['revision'],
+                                   sha256=expected, signature=signatures,
+                                   verified_at=time.strftime('%Y-%m-%dT%H:%M:%S%z')))
+    print(f'ok      {model.id}: {len(expected)} files and runtime match their pinned SHA-256')
+
+
+# ---- processes --------------------------------------------------------------
+
+SERVER_PATTERN = re.compile(
+    r'(?:^|/)(?:llama-server|ds4-server|mlx-serve|sushi|omlx|mlx_lm\.server|strata|rapid-mlx)(?=\s|$)')
+
+
+def is_model_server(args):
+    """Match the program itself, or the script an interpreter was given. Other
+    arguments don't count, so an editor opening a file named sushi is not a server."""
+    words = args.split()
+    interpreter = bool(words) and re.fullmatch(r'python[\d.]*', os.path.basename(words[0]), re.I)
+    return any(SERVER_PATTERN.search(w) for w in words[:3 if interpreter else 1])
+
+
+class Processes:
+    """One snapshot of launchd services and listening model servers."""
+
+    def __init__(self):
+        self.services = {}
+        listing = subprocess.run(['launchctl', 'list'], capture_output=True, text=True).stdout
+        for line in listing.splitlines():
+            parts = line.split('\t')
+            if len(parts) == 3 and parts[2].startswith('com.fcoury.local-models.'):
+                self.services[parts[2]] = int(parts[0]) if parts[0].isdigit() else None
+        self.ports = {}
+        listing = subprocess.run(['lsof', '-nP', '-iTCP', '-sTCP:LISTEN', '-Fpn'],
+                                 capture_output=True, text=True).stdout
+        pid = None
+        for line in listing.splitlines():
+            if line.startswith('p'):
+                pid = int(line[1:])
+            elif line.startswith('n') and line.rsplit(':', 1)[-1].isdigit():
+                self.ports.setdefault(int(line.rsplit(':', 1)[-1]), pid)
+
+    def describe(self, pids):
+        if not pids:
+            return {}
+        listing = subprocess.run(
+            ['ps', '-o', 'pid=,ppid=,rss=,etime=,command=', '-p', ','.join(map(str, pids))],
+            capture_output=True, text=True).stdout
+        found = {}
+        for line in listing.splitlines():
+            pid, parent, rss, age, args = line.split(None, 4)
+            found[int(pid)] = dict(parent=int(parent), rss=int(rss) * 1024, age=seconds(age), args=args)
+        return found
+
+    def unmanaged(self):
+        """Listening model servers that no modelctl service started."""
+        managed = {pid for pid in self.services.values() if pid}
+        found = []
+        details = self.describe(set(self.ports.values()))
+        for port, pid in sorted(self.ports.items()):
+            info = details.get(pid)
+            if not info or pid in managed or info['parent'] in managed:
+                continue
+            if is_model_server(info['args']):
+                name = re.search(r'(?:-hf|--model|-m|--alias)[ =](\S+)', info['args'])
+                found.append(dict(pid=pid, port=port, rss=info['rss'], age=info['age'],
+                                  command=os.path.basename(info['args'].split()[0]),
+                                  model=os.path.basename(name[1]) if name else ''))
+        return found
+
+
+def seconds(age):
+    days, _, clock = age.rpartition('-')
+    total = 0
+    for part in clock.split(':'):
+        total = total * 60 + int(part)
+    return total + int(days or 0) * 86400
+
+
+def fetch(url):
+    with urllib.request.urlopen(url, timeout=2) as reply:
+        return json.load(reply)
+
+
+def healthy(model):
+    try:
+        if fetch(f'http://127.0.0.1:{model.port}/health').get('status') != 'ok':
+            return False
+        return any(row.get('id') == model.api for row in fetch(model.base_url + '/models')['data'])
+    except (OSError, ValueError, KeyError):
+        return False
+
+
+def legacy_state(model):
+    words = run_legacy('status', model.id, capture_output=True, text=True).stdout.split()
+    return words[1] if len(words) > 1 else 'unknown'
+
+
+def state_of(model, processes, ready):
+    if model.kind != 'service':
+        if not ready:
+            return 'missing'
+        return 'managed' if model.id.startswith('mererun-') else 'ready'
+    if model.service in processes.services:
+        if not model.data:
+            return legacy_state(model)
+        if healthy(model):
+            return 'running'
+        return 'starting' if processes.services[model.service] else 'failed'
+    if model.port in processes.ports:
+        return 'external'
+    if not ready and model.data and not file_problems(model):
+        return 'unverified'
+    return 'stopped' if ready else 'missing'
+
+
+def active_services(catalog, processes):
+    return [m for m in catalog.models
+            if m.kind == 'service' and (m.service in processes.services or m.port in processes.ports)]
+
+
+# ---- guardrails -------------------------------------------------------------
+
+def sysctl(name):
+    return int(subprocess.run(['/usr/sbin/sysctl', '-n', name],
+                              capture_output=True, text=True).stdout.strip() or 0)
+
+
+def gpu_limit_gib():
+    limit = sysctl('iogpu.wired_limit_mb') / 1024
+    # Without an explicit limit macOS allows roughly three quarters of memory.
+    return limit or sysctl('hw.memsize') / GIB * 0.75
+
+
+def check_memory(model):
+    need, limit = model.launch['memory_gib'], gpu_limit_gib()
+    if need > limit:
+        raise Failure(f'{model.name} needs about {need} GiB but the GPU limit is {limit:.0f} GiB.')
+    pressure = sysctl('kern.memorystatus_vm_pressure_level')
+    if pressure >= 4:
+        raise Failure('macOS reports critical memory pressure. Close something and try again.')
+    if pressure >= 2:
+        step('macOS reports elevated memory pressure', ok=False)
+    step(f'Memory: needs about {need} GiB, GPU limit {limit:.0f} GiB')
+
+
+def check_exclusive(model, catalog, processes, force=False):
+    """Refuse a second large model. Legacy profiles also apply their own rules."""
+    for other in active_services(catalog, processes):
+        if other is not model and (model.data or other.data):
+            raise Failure(f'{other.name} is already running. Stop it first: modelctl stop {other.name}'
+                          if other.service in processes.services else
+                          f'Something outside modelctl is using {other.name}\'s port {other.port}.')
+    known = {m.port for m in catalog.models if m.port}
+    for server in processes.unmanaged():
+        if server['port'] in known:
+            continue
+        what = (f'{server["command"]} (PID {server["pid"]}, port {server["port"]}, '
+                f'{server["rss"] / GIB:.0f} GiB)')
+        if server['rss'] < UNMANAGED_LIMIT_GIB * GIB or force:
+            step(f'Unmanaged server running: {what}', ok=False)
+        else:
+            raise Failure(f'An unmanaged server is holding memory: {what}. Stop it, or use '
+                          f'modelctl start {model.name} --force')
+    if model.data:
+        step('No other large model running')
+
+
+def check_directory():
+    here = Path.cwd().resolve()
+    with contextlib.suppress(OSError):
+        home = MODEL_HOME.stat()
+        for folder in (here, *here.parents):
+            if os.path.samestat(folder.stat(), home):
+                raise Failure(f'You are inside the model store ({short_path(here)}). '
+                              'Open the harness from a project folder instead.')
+
+
+@contextlib.contextmanager
+def lock(name, shared=False, wait=True):
+    folder = STATE / 'run'
+    folder.mkdir(parents=True, exist_ok=True)
+    with open(folder / name, 'a') as handle:
+        flags = fcntl.LOCK_SH if shared else fcntl.LOCK_EX
+        fcntl.flock(handle, flags if wait else flags | fcntl.LOCK_NB)
+        yield
+
+
+# ---- lifecycle --------------------------------------------------------------
+
+def tail(path, start, lines=25):
+    try:
+        with open(path, 'rb') as handle:
+            handle.seek(start)
+            return '\n'.join(handle.read().decode(errors='replace').splitlines()[-lines:])
+    except OSError:
+        return ''
+
+
+def remove_service(model):
+    subprocess.run(['launchctl', 'remove', model.service], capture_output=True)
+    limit = time.monotonic() + 30
+    while time.monotonic() < limit:
+        processes = Processes()
+        if model.service not in processes.services and model.port not in processes.ports:
+            return True
+        time.sleep(0.3)
+    return False
+
+
+def start(model, catalog, force=False):
+    """Start a service and return True, or return False if it was already running."""
+    if model.kind != 'service':
+        exec_legacy('start', model.id)
+    with lock('start.lock'):
+        processes = Processes()
+        active = model.service in processes.services or model.port in processes.ports
+        if not active:
+            if model.data:
+                verify(model)
+                step(f'Files and runtime match pinned revision {model.manifest["revision"][:8]}')
+                check_memory(model)
+            check_exclusive(model, catalog, processes, force)
+        if not model.data:
+            return start_legacy(model, active)
+        if active:
+            if model.service not in processes.services:
+                raise Failure(f'Something outside modelctl is using port {model.port}.')
+            if healthy(model):
+                return False
+            if processes.services[model.service] is None:
+                remove_service(model)
+            else:
+                step(f'{model.name} is already starting')
+                await_ready(model, model.log.stat().st_size if model.log.exists() else 0)
+                return False
+        LOGS.mkdir(parents=True, exist_ok=True)
+        offset = model.log.stat().st_size if model.log.exists() else 0
+        began = time.monotonic()
+        result = subprocess.run(
+            ['launchctl', 'submit', '-l', model.service, '-o', str(model.log), '-e', str(model.log),
+             '--', '/usr/bin/env', f'MODEL_HOME={MODEL_HOME}', f'LOCAL_MODEL_STATE_HOME={STATE}',
+             f'MODELCTL_CATALOG={CATALOG}', f'PATH={os.environ["PATH"]}',
+             sys.executable, str(ROOT / 'bin/modelctl'), '__run', model.id],
+            capture_output=True, text=True)
+        if result.returncode:
+            raise Failure('launchctl could not start the service: ' + result.stderr.strip())
+        await_ready(model, offset)
+        step(f'Ready in {elapsed(time.monotonic() - began)} at {model.base_url}')
+        return True
+
+
+def await_ready(model, offset):
+    """Wait for health. launchd restarts a failed job, so a lost or changed PID is a failure."""
+    limit = time.monotonic() + model.launch.get('startup_timeout', 300)
+    first, misses = None, 0
+    try:
+        with spinner(f'Loading {model.name}', model.log) as tick:
+            while time.monotonic() < limit:
+                for _ in range(10):
+                    tick()
+                    time.sleep(0.1)
+                if healthy(model):
+                    return
+                listing = subprocess.run(['launchctl', 'list', model.service],
+                                         capture_output=True, text=True)
+                found = re.search(r'"PID" = (\d+);', listing.stdout)
+                pid = found and int(found[1])
+                first = first or pid
+                misses = 0 if pid else misses + 1
+                if listing.returncode or misses >= 5 or (pid and pid != first) or (first and not pid):
+                    raise Failure(f'{model.name} exited during startup. Recent log:\n'
+                                  + tail(model.log, offset) + f'\n\nFull log: {model.log}')
+        raise Failure(f'{model.name} did not become ready in time. Recent log:\n'
+                      + tail(model.log, offset) + f'\n\nFull log: {model.log}')
+    except BaseException:
+        remove_service(model)
+        raise
+
+
+def start_legacy(model, active):
+    if not sys.stderr.isatty() or Out.quiet:
+        result = run_legacy('start', model.id)
+        if result.returncode:
+            raise Failure('', result.returncode)
+        return not active
+    with tempfile.TemporaryFile('w+') as output:
+        job = subprocess.Popen([str(LEGACY), 'start', model.id], stdout=output, stderr=output)
+        try:
+            with spinner(f'Loading {model.name}', model.log) as tick:
+                while job.poll() is None:
+                    tick()
+                    time.sleep(0.1)
+        except BaseException:
+            job.terminate()
+            raise
+        output.seek(0)
+        text = output.read().strip()
+    if job.returncode:
+        raise Failure(text, job.returncode)
+    step(text.splitlines()[0] if text else f'Started {model.name}')
+    return not active
+
+
+def marker(model):
+    return STATE / f'run/{model.id}.owned'
+
+
+def stop(model):
+    marker(model).unlink(missing_ok=True)
+    if not model.data:
+        result = run_legacy('stop', model.id)
+        if result.returncode:
+            raise Failure('', result.returncode)
+        return
+    processes = Processes()
+    if model.service not in processes.services:
+        if model.port in processes.ports:
+            raise Failure(f'{model.name}\'s port {model.port} is used by a process outside modelctl; '
+                          'refusing to stop it.')
+        print(f'{model.name} is not running.')
+        return
+    with spinner(f'Stopping {model.name}') as tick:
+        tick()
+        done = remove_service(model)
+    if not done:
+        raise Failure(f'{model.name} did not stop after 30 seconds.')
+    print(f'Stopped {model.name}.')
+
+
+# ---- harnesses --------------------------------------------------------------
+
+def link_shared(source, target, names):
+    """Carry over the user's own extensions and instructions without copying them."""
+    for name in names:
+        here, there = target / name, source / name
+        if there.exists() and not here.exists() and not here.is_symlink():
+            here.symlink_to(there)
+
+
+def read_json(path):
+    try:
+        return json.loads(path.read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def prepare_omp(model):
+    home = STATE / f'harness/omp/{model.id}'
+    home.mkdir(parents=True, exist_ok=True)
+    settings = model.entry['harness']
+    provider = f'modelctl-{model.name.replace(".", "-")}'
+    # YAML accepts JSON. thinkingFormat and reasoningDisableMode make every level,
+    # including off, reach llama.cpp as a per-request reasoning_effort.
+    write_json(home / 'models.yml', {'providers': {provider: {
+        'baseUrl': model.base_url, 'auth': 'none', 'api': 'openai-completions',
+        'models': [{
+            'id': model.api, 'name': model.label, 'reasoning': True,
+            'thinking': {'mode': 'effort', 'efforts': settings['thinking'],
+                         'defaultLevel': settings['thinking_default']},
+            'input': ['text', 'image'] if model.entry.get('vision') else ['text'],
+            'supportsTools': True, 'contextWindow': model.context, 'maxTokens': model.output,
+            'cost': {'input': 0, 'output': 0, 'cacheRead': 0, 'cacheWrite': 0},
+            'compat': {'supportsDeveloperRole': False, 'supportsReasoningEffort': True,
+                       'thinkingFormat': 'openai', 'reasoningDisableMode': 'none-effort'},
+        }]}}})
+    config = home / 'config.yml'
+    if not config.exists():
+        config.write_text('setupVersion: 3\ncompaction:\n'
+                          f'  keepRecentTokens: {settings["keep_recent_tokens"]}\n'
+                          f'  reserveTokens: {settings["reserve_tokens"]}\n')
+    link_shared(Path.home() / '.omp/agent', home, ('extensions', 'skills', 'prompts', 'AGENTS.md'))
+    return home, ['omp', '--model', f'{provider}/{model.api}'], settings['thinking_default']
+
+
+def prepare_pi(model):
+    home = STATE / f'harness/pi/{model.id}'
+    home.mkdir(parents=True, exist_ok=True)
+    settings = model.entry['harness']
+    levels = {level: level if level in settings['thinking'] else None
+              for level in ('minimal', 'low', 'medium', 'high', 'xhigh', 'max')}
+    write_json(home / 'models.json', {'providers': {'modelctl': {
+        'baseUrl': model.base_url, 'api': 'openai-completions', 'apiKey': 'local',
+        'compat': {'supportsDeveloperRole': False, 'supportsReasoningEffort': True},
+        'models': [{
+            'id': model.api, 'name': model.label, 'reasoning': True,
+            'input': ['text', 'image'] if model.entry.get('vision') else ['text'],
+            'contextWindow': model.context, 'maxTokens': model.output,
+            'thinkingLevelMap': {'off': 'none', **levels},
+            'cost': {'input': 0, 'output': 0, 'cacheRead': 0, 'cacheWrite': 0}}]}}})
+    path = home / 'settings.json'
+    shared = read_json(Path.home() / '.pi/agent/settings.json')
+    config = read_json(path) or {k: shared[k] for k in ('theme', 'quietStartup') if k in shared}
+    config.update(defaultProvider='modelctl', defaultModel=model.api)
+    config.setdefault('defaultThinkingLevel', settings['thinking_default'])
+    config.setdefault('compaction', {'enabled': True, 'reserveTokens': settings['reserve_tokens'],
+                                     'keepRecentTokens': settings['keep_recent_tokens']})
+    write_json(path, config)
+    link_shared(Path.home() / '.pi/agent', home, ('extensions', 'skills', 'prompts', 'themes', 'AGENTS.md'))
+    return home, ['pi', '--provider', 'modelctl', '--model', model.api], settings['thinking_default']
+
+
+def run_harness(command, env):
+    """Run in the foreground. The harness handles Ctrl-C; we stay to clean up after it."""
+    child = None
+
+    def forward(number, _):
+        if child:
+            with contextlib.suppress(OSError):
+                child.send_signal(number)
+    previous = {n: signal.signal(n, forward) for n in (signal.SIGTERM, signal.SIGHUP)}
+    previous[signal.SIGINT] = signal.signal(signal.SIGINT, lambda *_: None)
+    try:
+        child = subprocess.Popen(command, env=env)
+        code = child.wait()
+        return code if code >= 0 else 128 - code
+    finally:
+        for number, handler in previous.items():
+            signal.signal(number, handler)
+
+
+def use(harness, model, args, catalog):
+    if harness not in HARNESSES:
+        raise Failure(f'Unknown harness: {harness}. Choose {" or ".join(HARNESSES)}.', 2)
+    check_directory()
+    if not model.data:
+        supported = run_legacy('__complete', 'omp', capture_output=True, text=True).stdout
+        if harness != 'omp' or model.id not in [l.split('\t')[0] for l in supported.splitlines()]:
+            ready = [m.name for m in catalog.models
+                     if harness in m.entry.get('harness', {}).get('supported', [])]
+            raise Failure(f'{model.name} is not set up for {harness} yet. '
+                          f'Set up for {harness}: {", ".join(ready)}', 2)
+        home = STATE / f'harness/omp/{model.id}'
+        home.mkdir(parents=True, exist_ok=True)
+        shared = STATE / 'omp-agent/config.yml'
+        if shared.exists() and not (home / 'config.yml').exists():
+            shutil.copyfile(shared, home / 'config.yml')
+        link_shared(Path.home() / '.omp/agent', home, ('extensions', 'skills', 'prompts', 'AGENTS.md'))
+        guard_legacy(model, catalog)
+        os.environ['MODELCTL_OMP_AGENT_DIR'] = str(home)
+        exec_legacy('omp', model.id, *args)
+    if harness not in model.entry.get('harness', {}).get('supported', []):
+        raise Failure(f'{model.name} is not set up for {harness} yet.', 2)
+    if not shutil.which(harness):
+        raise Failure(f'{harness} is not installed.')
+    home, command, level = {'omp': prepare_omp, 'pi': prepare_pi}[harness](model)
+    if not any(a == '--thinking' or a.startswith('--thinking=') for a in args):
+        command += ['--thinking', level]
+    # Sessions share this lock; the last one out stops a server that use started.
+    owned = False
+    try:
+        with lock(f'{model.id}.lock', shared=True):
+            if start(model, catalog):
+                marker(model).write_text('started by modelctl use\n')
+            code = run_harness(command + args, dict(os.environ, PI_CODING_AGENT_DIR=str(home)))
+    finally:
+        owned = marker(model).exists()
+        if owned:
+            with contextlib.suppress(BlockingIOError), lock(f'{model.id}.lock', wait=False):
+                if marker(model).exists():
+                    Out.quiet = True
+                    with contextlib.redirect_stdout(sys.stderr):
+                        stop(model)
+    return code
+
+
+def guard_legacy(model, catalog, force=False):
+    processes = Processes()
+    if model.kind == 'service' and model.service not in processes.services \
+            and model.port not in processes.ports:
+        check_exclusive(model, catalog, processes, force)
+
+
+# ---- views ------------------------------------------------------------------
+
+DOT = {'running': ('●', '32'), 'starting': ('◐', '33'), 'failed': ('✗', '31'),
+       'external': ('●', '33'), 'unverified': ('!', '33'), 'missing': ('-', '2')}
+
+
+def decorate(line, state):
+    mark, code = DOT.get(state, ('', ''))
+    return line.replace(f'{mark} {state}', paint(f'{mark} {state}', code)) if mark else line
+
+
+def state_text(state):
+    mark = DOT.get(state, ('',))[0]
+    return f'{mark} {state}' if mark else state
+
+
+def running_rows(catalog, processes):
+    rows = []
+    active = active_services(catalog, processes)
+    details = processes.describe(
+        {processes.services.get(m.service) or processes.ports.get(m.port) for m in active} - {None})
+    for model in active:
+        pid = processes.services.get(model.service) or processes.ports.get(model.port)
+        info = details.get(pid, {})
+        rows.append(dict(name=model.name, id=model.id, label=model.label, port=model.port, pid=pid,
+                         state=state_of(model, processes, True), context=model.context,
+                         slots=(model.launch or {}).get('slots', 1),
+                         rss=info.get('rss'), uptime=info.get('age'), endpoint=model.base_url))
+    return rows
+
+
+def show_running(as_json):
+    catalog, processes = Catalog(), Processes()
+    rows = running_rows(catalog, processes)
+    taken = {r['port'] for r in rows}
+    unmanaged = [s for s in processes.unmanaged() if s['port'] not in taken]
+    if as_json:
+        print(json.dumps(dict(running=rows, unmanaged=unmanaged), indent=2))
+        return
+    if rows:
+        print(paint('RUNNING', '1'))
+        cells = [[r['name'], r['label'], state_text(r['state']), f':{r["port"]}',
+                  (f'{r["slots"]} × ' if r['slots'] > 1 else '') + context_text(r['context']),
+                  f'{r["rss"] / GIB:.0f} GiB' if r['rss'] else '-',
+                  elapsed(r['uptime']) if r['uptime'] is not None else '-'] for r in rows]
+        for row, line in zip(rows, table(
+                cells, ['NAME', 'MODEL', 'STATE', 'PORT', 'CONTEXT', 'MEMORY', 'UPTIME'], flex=1)):
+            print(decorate(line, row['state']))
+    else:
+        print('No models running.')
+    if unmanaged:
+        print('\n' + paint('NOT MANAGED BY MODELCTL', '1'))
+        for s in unmanaged:
+            print(f'{s["command"]}  {s["model"]}  :{s["port"]}  PID {s["pid"]}  '
+                  f'{s["rss"] / GIB:.0f} GiB  {elapsed(s["age"])}')
+    if rows:
+        name, pick = rows[0]['name'], catalog.by_name[rows[0]['id']]
+        offers = pick.entry.get('harness', {}).get('supported', [])
+        hints = [f'modelctl use {offers[0]} {name}'] if offers else []
+        print('\nNext: ' + ' · '.join(hints + [f'modelctl logs {name}', f'modelctl stop {name}']))
+    else:
+        print('\nNext: modelctl list · modelctl start NAME')
+
+
+def show_list(show_all, as_json, refresh):
+    catalog, processes = Catalog(), Processes()
+    ready = catalog.readiness(refresh)
+    rows = []
+    for model in catalog.models:
+        state = state_of(model, processes, ready[model.id]['ready'])
+        rows.append(dict(name=model.name, id=model.id, alias=model.alias, label=model.label,
+                         title=model.title, kind=model.kind, runtime=model.runtime, port=model.port,
+                         context=model.context, output=model.output, size=ready[model.id]['size'],
+                         state=state, status=model.entry.get('status'), path=str(model.path)))
+    if as_json:
+        print(json.dumps(rows, indent=2))
+        return
+    order = {'running': 0, 'external': 0, 'starting': 0, 'failed': 0}
+    shown = [r for r in rows if show_all or
+             (r['kind'] != 'asset' and r['state'] != 'missing')]
+    shown.sort(key=lambda r: (order.get(r['state'], 1), not r['alias']))
+    cells = [[r['name'], r['title'], r['runtime'], context_text(r['context']),
+              size_text(r['size']), state_text(r['state'])] for r in shown]
+    for row, line in zip(shown, table(
+            cells, ['NAME', 'MODEL', 'RUNTIME', 'CTX', 'SIZE', 'STATE'], flex=1)):
+        print(decorate(line, row['state']))
+    hidden = len(rows) - len(shown)
+    if hidden:
+        assets = sum(r['kind'] == 'asset' for r in rows)
+        parts = [f'{assets} assets'] if assets else []
+        parts += [f'{hidden - assets} missing'] if hidden > assets else []
+        print(f'\n{" and ".join(parts)} hidden · modelctl list --all')
+
+
+def legacy_status_line(model, processes):
+    """The original columns: scripts read the first two."""
+    ready = is_ready(model)
+    state = state_of(model, processes, ready)
+    if model.service in processes.services:
+        detail = f'pid={processes.services[model.service] or "unknown"} port={model.port}'
+    elif state == 'external':
+        detail = f'port={model.port} (not managed by modelctl)'
+    elif state == 'stopped':
+        detail = f'port={model.port}'
+    else:
+        detail = str(model.path)
+    return f'{model.id:<29} {state:<9} {detail}'
+
+
+def show_status(name, as_json):
+    plain = not sys.stdout.isatty() and not as_json
+    if name is None:
+        if not plain:
+            show_running(as_json)
+            return
+        result = run_legacy('status')
+        sys.stdout.flush()
+        processes = Processes()
+        for model in Catalog().models:
+            if model.data:
+                print(legacy_status_line(model, processes))
+        if result.returncode:
+            raise Failure('', result.returncode)
+        return
+    catalog = Catalog()
+    model = catalog.get(name)
+    if plain and not model.data:
+        exec_legacy('status', model.id)
+    processes = Processes()
+    if plain:
+        print(legacy_status_line(model, processes))
+        return
+    ready = is_ready(model)
+    state = state_of(model, processes, ready)
+    running = [r for r in running_rows(catalog, processes) if r['id'] == model.id]
+    live = running[0] if running else {}
+    info = dict(name=model.name, id=model.id, label=model.label, state=state,
+                status=model.entry.get('status'), runtime=model.entry.get('runner'),
+                context=model.context, slots=(model.launch or {}).get('slots', 1),
+                output=model.output, endpoint=model.base_url if model.port else None,
+                pid=live.get('pid'), rss=live.get('rss'), uptime=live.get('uptime'),
+                path=str(model.path), log=str(model.log) if model.kind == 'service' else None,
+                source=model.entry.get('source'), revision=model.entry.get('source_revision'),
+                harnesses=model.entry.get('harness', {}).get('supported', []),
+                notes=model.entry.get('notes'))
+    if as_json:
+        print(json.dumps(info, indent=2))
+        return
+    print(paint(model.name, '1') + f'  {model.label}')
+    context = context_text(model.context) if model.context else None
+    if context and info['slots'] > 1:
+        context = f'{info["slots"]} × {context}'
+    lines = [('State', decorate(state_text(state), state)), ('ID', model.id),
+             ('Catalog', info['status']), ('Runtime', info['runtime']), ('Context', context),
+             ('Memory', f'{live["rss"] / GIB:.0f} GiB' if live.get('rss') else None),
+             ('Uptime', elapsed(live['uptime']) if live.get('uptime') is not None else None),
+             ('Endpoint', info['endpoint']), ('Harnesses', ', '.join(info['harnesses'])),
+             ('Source', ' @ '.join(filter(None, [info['source'], (info['revision'] or '')[:8]]))),
+             ('Path', short_path(model.path)), ('Log', short_path(model.log) if info['log'] else None),
+             ('Notes', info['notes'])]
+    for key, value in lines:
+        if value:
+            print(f'  {paint(key.ljust(10), "2")} {value}')
+
+
+# ---- commands ---------------------------------------------------------------
+
+def take(args, *flags):
+    """Remove known flags from args and report which were present."""
+    found = {flag: flag in args for flag in flags}
+    args[:] = [a for a in args if a not in flags]
+    return found
+
+
+def no_extra(args):
+    if args:
+        raise Failure(f'Unexpected argument: {args[0]}', 2)
+
+
+def need(args, what='a model'):
+    if not args:
+        raise Failure(f'Name {what}. See: modelctl help', 2)
+    return args.pop(0)
+
+
+def complete(scope, aliases):
+    output = ''
+    if scope != 'pi':
+        result = run_legacy('__complete', scope, capture_output=True, text=True)
+        if result.returncode:
+            return result.returncode
+        output = result.stdout
+    sys.stdout.write(output)
+    shown = {line.split('\t')[0] for line in output.splitlines()}
+    for model in Catalog().models:
+        if model.data:
+            if scope in HARNESSES and scope not in model.entry.get('harness', {}).get('supported', []):
+                continue
+            print(f'{model.id}\t{model.label}')
+            shown.add(model.id)
+        if aliases and model.alias and model.id in shown:
+            print(f'{model.alias}\t{model.label}')
+    return 0
+
+
+def main(argv):
+    command, args = (argv[0] if argv else ''), list(argv[1:])
+    if command in ('help', '-h', '--help'):
+        print(USAGE, end='')
+        return 0
+    if command in ('', '--json'):
+        show_running(command == '--json')
+        return 0
+    if command in ('__complete', '__names'):
+        if len(args) != 1:
+            return 2
+        return complete(args[0], command == '__names')
+    if command in ('__metadata', '__ready'):
+        exec_legacy(command, *args)
+
+    if command == 'list':
+        flags = take(args, '--all', '--json', '--refresh')
+        no_extra(args)
+        show_list(flags['--all'], flags['--json'], flags['--refresh'])
+        return 0
+    if command == 'status':
+        flags = take(args, '--json')
+        name = args.pop(0) if args else None
+        no_extra(args)
+        show_status(name, flags['--json'])
+        return 0
+    if command in ('start', 'stop'):
+        flags = take(args, '--quiet', *(['--force'] if command == 'start' else []))
+        Out.quiet = flags['--quiet']
+        catalog = Catalog()
+        model = catalog.get(need(args))
+        no_extra(args)
+        if command == 'stop':
+            if model.kind != 'service':
+                raise Failure(f'{model.name} is not a model server.', 2)
+            stop(model)
+            return 0
+        started = start(model, catalog, flags['--force'])
+        # An explicit start means keep it running after use sessions end.
+        marker(model).unlink(missing_ok=True)
+        if model.data and not Out.quiet and not (started and sys.stdout.isatty()):
+            print(f'{model.name} is {"running" if started else "already running"} at {model.base_url}')
+        return 0
+    if command == 'use':
+        Out.quiet = bool(args and args[0] == '--quiet' and args.pop(0))
+        harness = need(args, 'a harness and a model')
+        if harness not in HARNESSES:
+            raise Failure(f'Unknown harness: {harness}. Choose {" or ".join(HARNESSES)}.', 2)
+        catalog = Catalog()
+        return use(harness, catalog.get(need(args)), args, catalog)
+
+    if command in ('run', 'logs', 'path', 'endpoint', 'omp', 'dsh', '__run'):
+        catalog = Catalog()
+        model = catalog.get(need(args))
+        if not model.data:
+            if command == 'omp':
+                check_directory()
+            if command in ('run', 'omp'):
+                guard_legacy(model, catalog)
+            exec_legacy(command, model.id, *args)
+        if command == 'run':
+            processes = Processes()
+            if model.service in processes.services or model.port in processes.ports:
+                raise Failure(f'{model.name} is already running.')
+            verify(model)
+            check_memory(model)
+            check_exclusive(model, catalog, processes)
+            line = model.command() + args
+            os.execv(line[0], line)
+        if command == '__run':
+            verify(model)
+            line = model.command()
+            os.execv(line[0], line)
+        if command == 'logs':
+            LOGS.mkdir(parents=True, exist_ok=True)
+            model.log.touch()
+            os.execvp('tail', ['tail', '-f', str(model.log)])
+        if command == 'path':
+            print(model.path)
+        elif command == 'endpoint':
+            flags = take(args, '--json')
+            no_extra(args)
+            print(json.dumps(dict(id=model.id, base_url=model.base_url, api_model=model.api,
+                                  context=model.context, output=model.output), indent=2)
+                  if flags['--json'] else model.base_url)
+        elif command == 'omp':
+            return use('omp', model, args, catalog)
+        elif command == 'dsh':
+            raise Failure(f'{model.name} is not set up for dsh yet.', 2)
+        return 0
+    if command == 'doctor':
+        catalog = Catalog()
+        if args:
+            model = catalog.get(args[0])
+            if model.data:
+                doctor(model)
+                return 0
+            exec_legacy('doctor', model.id)
+        code = run_legacy('doctor').returncode
+        for model in catalog.models:
+            if model.data:
+                if is_ready(model):
+                    print(f'ok      {model.id}')
+                else:
+                    print(f'missing {model.id}: run modelctl doctor {model.name}')
+                    code = code or 1
+        return code
+    raise Failure(f'Unknown command: {command}\n\n{USAGE}', 2)
+
+
+def leave(number, _):
+    sys.exit(128 + number)
+
+
+if __name__ == '__main__':
+    for number in (signal.SIGTERM, signal.SIGHUP):
+        signal.signal(number, leave)
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except Failure as error:
+        if str(error):
+            print(paint('✗', '31', sys.stderr), error, file=sys.stderr)
+        sys.exit(error.code)
+    except KeyboardInterrupt:
+        sys.exit(130)
+    except BrokenPipeError:
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        sys.exit(141)

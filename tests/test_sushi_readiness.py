@@ -35,7 +35,7 @@ try:
     with tempfile.TemporaryDirectory() as tmp:
         # Load the real launcher functions without its command dispatcher.
         functions = Path(tmp) / 'functions.sh'
-        functions.write_text((ROOT / 'bin/modelctl').read_text().split('\ncommand_name=', 1)[0])
+        functions.write_text((ROOT / 'bin/modelctl-legacy').read_text().split('\ncommand_name=', 1)[0])
         script = '''source "$1"
 port() { echo "$TEST_PORT"; }
 service_loaded() { return 0; }

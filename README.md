@@ -26,7 +26,10 @@ runtime-state directories; model weights must be restored separately.
 ## Daily use
 
 ```bash
-modelctl list
+modelctl                       # what is running
+modelctl list                  # installed models; --all adds assets
+modelctl use pi flash-ud       # start the model if needed, open Pi here
+modelctl use omp flash-ud
 modelctl start qwen3.8-27b
 modelctl status qwen3.8-27b
 modelctl logs qwen3.8-27b
@@ -61,6 +64,27 @@ The old `deepseek-v4-flash` Vision-Exp weights and encoder were
 entry and launcher profile were retired; recovery pins remain in that report.
 The older Qwen3.6 OptiQ, Qwen3.8 27B Uncensored MLX and Unsloth Flash Next
 IQ4 bundles were also [removed on 2026-10-25](benchmarks/qwen-model-retirement.md).
+
+### How profiles work
+
+`bin/modelctl` is the command. Models whose `models.toml` entry has a
+`[models.launch]` table are started from that data. All other profiles still
+live in `bin/modelctl-legacy`, which the command calls; migrate them one at a
+time. `alias` gives a model a short name: `flash`, `flash-ud` and `deepseek`.
+
+`modelctl use` writes an isolated harness configuration per model under
+`~/Library/Application Support/local-models/harness` and links your own
+extensions and skills into it. It never edits `~/.pi` or `~/.omp`. A server it
+started stops when the last session exits; one started with `modelctl start`
+keeps running. It refuses to open a harness inside the model store.
+
+A catalog-driven model must be verified once with `modelctl doctor MODEL`
+before it will start, and again if its files change. Starting a second large
+model, or any model beside an unmanaged server holding 8 GiB or more, is
+refused. `modelctl start MODEL --force` overrides only the unmanaged check.
+
+Piped `modelctl status` keeps its original columns because `modelbench` reads
+them. Use `--json` for anything new.
 
 Run `modelctl doctor` after moving or updating models. The complete inventory,
 including non-server assets and application-managed models, is in

@@ -5,11 +5,11 @@ function __modelctl_complete_models
     set -l modelctl (command -v modelctl)
 
     test -n "$modelctl"; or return
-    command "$modelctl" __complete $scope 2>/dev/null
+    command "$modelctl" __names $scope 2>/dev/null
 end
 
 function __modelctl_needs_command
-    not __fish_seen_subcommand_from list status start run stop logs path endpoint omp dsh doctor help
+    not __fish_seen_subcommand_from list status start run stop logs path endpoint use omp dsh doctor help
 end
 
 function __modelctl_needs_model
@@ -53,7 +53,7 @@ function __modelctl_no_file_completion
     set -l tokens (commandline -opc)
 
     test (count $tokens) -le 2; and return 0
-    __fish_seen_subcommand_from run omp dsh; and return 1
+    __fish_seen_subcommand_from run use omp dsh; and return 1
     return 0
 end
 
@@ -61,14 +61,15 @@ end
 # for runner arguments such as `modelctl run muse-glimmer-30b --root ...`.
 complete -c modelctl -n __modelctl_no_file_completion -f
 
-complete -c modelctl -n __modelctl_needs_command -f -a list -d 'Show all model services and assets'
-complete -c modelctl -n __modelctl_needs_command -f -a status -d 'Show all statuses, or one model status'
+complete -c modelctl -n __modelctl_needs_command -f -a list -d 'Show models'
+complete -c modelctl -n __modelctl_needs_command -f -a status -d 'Show what is running, or one model'
 complete -c modelctl -n __modelctl_needs_command -f -a start -d 'Start a model server in the background'
 complete -c modelctl -n __modelctl_needs_command -f -a run -d 'Run a model server or harness in the foreground'
 complete -c modelctl -n __modelctl_needs_command -f -a stop -d 'Stop a server started by modelctl'
 complete -c modelctl -n __modelctl_needs_command -f -a logs -d 'Follow a model server log'
 complete -c modelctl -n __modelctl_needs_command -f -a path -d 'Print the canonical model path'
 complete -c modelctl -n __modelctl_needs_command -f -a endpoint -d 'Print OpenAI-compatible endpoint metadata'
+complete -c modelctl -n __modelctl_needs_command -f -a use -d 'Open a harness on a model, starting it if needed'
 complete -c modelctl -n __modelctl_needs_command -f -a omp -d 'Run OMP with generated local-model metadata'
 complete -c modelctl -n __modelctl_needs_command -f -a doctor -d 'Validate models and their runtimes'
 complete -c modelctl -n __modelctl_needs_command -f -a help -d 'Show help'
@@ -82,6 +83,20 @@ complete -c modelctl -n '__modelctl_needs_model; and __fish_seen_subcommand_from
     -f -a '(__modelctl_complete_models services)'
 complete -c modelctl -n '__modelctl_needs_model; and __fish_seen_subcommand_from omp' \
     -f -a '(__modelctl_complete_models omp)'
+
+function __modelctl_use_position
+    set -l tokens (commandline -opc)
+
+    test (count $tokens) -eq $argv[1]; and test "$tokens[2]" = use
+end
+
+complete -c modelctl -n '__modelctl_use_position 2' -f -a 'omp pi' -d Harness
+complete -c modelctl -n '__modelctl_use_position 3' -f -a '(__modelctl_complete_models (commandline -opc)[3])'
+complete -c modelctl -n '__fish_seen_subcommand_from list' -f -l all -d 'Include assets and missing entries'
+complete -c modelctl -n '__fish_seen_subcommand_from list' -f -l refresh -d 'Recheck installed files'
+complete -c modelctl -n '__fish_seen_subcommand_from list status' -f -l json -d 'Print JSON'
+complete -c modelctl -n '__fish_seen_subcommand_from start stop' -f -l quiet -d 'Hide progress'
+complete -c modelctl -n '__fish_seen_subcommand_from start' -f -l force -d 'Start beside an unmanaged server'
 
 complete -c modelctl -n __modelctl_endpoint_options -f -l json -d 'Print metadata as JSON'
 
