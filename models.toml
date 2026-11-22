@@ -450,6 +450,16 @@ runtime_sha256 = "62e3e3fb82f577101a66ac708c3d4925ee4881d91cce08e9b811dafb1ecd72
 runtime_archive_sha256 = "9acaa7a21b294536c3db9f2683d85079727b4e8db725d34260020499523dc267"
 notes = "Local hosting and native thinking-off verified. Full Aider Rust: 15/30 first try, 22/30 within two in 28m06s; all 45 attempts independently verified. 64K context, 2048 reasoning budget when enabled, MTP and PLD off by default. Older uncalibrated mixed-4-8bit pack retention unchanged by this evaluation."
 
+# Launched by modelctl-legacy; this table only enables modelctl use.
+[models.harness]
+supported = ["omp", "pi"]
+thinking = ["low", "medium", "xhigh"]
+thinking_default = "medium"
+vision = true
+max_output = 16384
+reserve_tokens = 16384
+keep_recent_tokens = 8192
+
 [[models]]
 id = "hy4-flash-q4-k-m"
 name = "Hy4 Flash AngelSlim Q4_K_M"

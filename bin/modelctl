@@ -199,6 +199,18 @@ class Model:
     def name(self):
         return self.alias or self.id
 
+    def supports(self, harness):
+        return harness in self.entry.get('harness', {}).get('supported', [])
+
+    @property
+    def vision(self):
+        # A legacy entry's vision field describes other clients; its harness table decides.
+        return self.entry.get('harness', {}).get('vision', self.data and self.entry.get('vision'))
+
+    @property
+    def max_output(self):
+        return self.entry.get('harness', {}).get('max_output', self.output)
+
     @property
     def service(self):
         return f'com.fcoury.local-models.{self.id.replace(".", "_")}'
@@ -653,7 +665,7 @@ def remove_service(model):
     return False
 
 
-def start(model, catalog, force=False):
+def start(model, catalog, force=False, output=None):
     """Start a service and return True, or return False if it was already running."""
     if model.kind != 'service':
         exec_legacy('start', model.id)
@@ -667,7 +679,7 @@ def start(model, catalog, force=False):
                 check_memory(model)
             check_exclusive(model, catalog, processes, force)
         if not model.data:
-            return start_legacy(model, active)
+            return start_legacy(model, active, output)
         if active:
             if model.service not in processes.services:
                 raise Failure(f'Something outside modelctl is using port {model.port}.')
@@ -723,14 +735,23 @@ def await_ready(model, offset):
         raise
 
 
-def start_legacy(model, active):
+def start_legacy(model, active, output=None):
+    if active:
+        # Legacy start only reports an existing listener, so leave it to the caller.
+        if output is None and (code := run_legacy('start', model.id).returncode):
+            raise Failure('', code)
+        return False
     if not sys.stderr.isatty() or Out.quiet:
-        result = run_legacy('start', model.id)
+        try:
+            result = run_legacy('start', model.id, stdout=output)
+        except BaseException:
+            remove_service(model)
+            raise
         if result.returncode:
             raise Failure('', result.returncode)
-        return not active
-    with tempfile.TemporaryFile('w+') as output:
-        job = subprocess.Popen([str(LEGACY), 'start', model.id], stdout=output, stderr=output)
+        return True
+    with tempfile.TemporaryFile('w+') as captured:
+        job = subprocess.Popen([str(LEGACY), 'start', model.id], stdout=captured, stderr=captured)
         try:
             with spinner(f'Loading {model.name}', model.log) as tick:
                 while job.poll() is None:
@@ -738,23 +759,25 @@ def start_legacy(model, active):
                     time.sleep(0.1)
         except BaseException:
             job.terminate()
+            job.wait()
+            remove_service(model)
             raise
-        output.seek(0)
-        text = output.read().strip()
+        captured.seek(0)
+        text = captured.read().strip()
     if job.returncode:
         raise Failure(text, job.returncode)
     step(text.splitlines()[0] if text else f'Started {model.name}')
-    return not active
+    return True
 
 
 def marker(model):
     return STATE / f'run/{model.id}.owned'
 
 
-def stop(model):
+def stop(model, output=None):
     marker(model).unlink(missing_ok=True)
     if not model.data:
-        result = run_legacy('stop', model.id)
+        result = run_legacy('stop', model.id, stdout=output)
         if result.returncode:
             raise Failure('', result.returncode)
         return
@@ -796,15 +819,15 @@ def prepare_omp(model):
     settings = model.entry['harness']
     provider = f'modelctl-{model.name.replace(".", "-")}'
     # YAML accepts JSON. thinkingFormat and reasoningDisableMode make every level,
-    # including off, reach llama.cpp as a per-request reasoning_effort.
+    # including off, reach llama.cpp and mlx-serve as a per-request reasoning_effort.
     write_json(home / 'models.yml', {'providers': {provider: {
         'baseUrl': model.base_url, 'auth': 'none', 'api': 'openai-completions',
         'models': [{
             'id': model.api, 'name': model.label, 'reasoning': True,
             'thinking': {'mode': 'effort', 'efforts': settings['thinking'],
                          'defaultLevel': settings['thinking_default']},
-            'input': ['text', 'image'] if model.entry.get('vision') else ['text'],
-            'supportsTools': True, 'contextWindow': model.context, 'maxTokens': model.output,
+            'input': ['text', 'image'] if model.vision else ['text'],
+            'supportsTools': True, 'contextWindow': model.context, 'maxTokens': model.max_output,
             'cost': {'input': 0, 'output': 0, 'cacheRead': 0, 'cacheWrite': 0},
             'compat': {'supportsDeveloperRole': False, 'supportsReasoningEffort': True,
                        'thinkingFormat': 'openai', 'reasoningDisableMode': 'none-effort'},
@@ -829,8 +852,8 @@ def prepare_pi(model):
         'compat': {'supportsDeveloperRole': False, 'supportsReasoningEffort': True},
         'models': [{
             'id': model.api, 'name': model.label, 'reasoning': True,
-            'input': ['text', 'image'] if model.entry.get('vision') else ['text'],
-            'contextWindow': model.context, 'maxTokens': model.output,
+            'input': ['text', 'image'] if model.vision else ['text'],
+            'contextWindow': model.context, 'maxTokens': model.max_output,
             'thinkingLevelMap': {'off': 'none', **levels},
             'cost': {'input': 0, 'output': 0, 'cacheRead': 0, 'cacheWrite': 0}}]}}})
     path = home / 'settings.json'
@@ -868,11 +891,10 @@ def use(harness, model, args, catalog):
     if harness not in HARNESSES:
         raise Failure(f'Unknown harness: {harness}. Choose {" or ".join(HARNESSES)}.', 2)
     check_directory()
-    if not model.data:
+    if not model.supports(harness) and not model.data:
         supported = run_legacy('__complete', 'omp', capture_output=True, text=True).stdout
         if harness != 'omp' or model.id not in [l.split('\t')[0] for l in supported.splitlines()]:
-            ready = [m.name for m in catalog.models
-                     if harness in m.entry.get('harness', {}).get('supported', [])]
+            ready = [m.name for m in catalog.models if m.supports(harness)]
             raise Failure(f'{model.name} is not set up for {harness} yet. '
                           f'Set up for {harness}: {", ".join(ready)}', 2)
         home = STATE / f'harness/omp/{model.id}'
@@ -884,7 +906,7 @@ def use(harness, model, args, catalog):
         guard_legacy(model, catalog)
         os.environ['MODELCTL_OMP_AGENT_DIR'] = str(home)
         exec_legacy('omp', model.id, *args)
-    if harness not in model.entry.get('harness', {}).get('supported', []):
+    if not model.supports(harness):
         raise Failure(f'{model.name} is not set up for {harness} yet.', 2)
     if not shutil.which(harness):
         raise Failure(f'{harness} is not installed.')
@@ -895,8 +917,11 @@ def use(harness, model, args, catalog):
     owned = False
     try:
         with lock(f'{model.id}.lock', shared=True):
-            if start(model, catalog):
+            # Harness output may be piped, so startup messages go to stderr.
+            if start(model, catalog, output=sys.stderr):
                 marker(model).write_text('started by modelctl use\n')
+            if not model.data and (state := legacy_state(model)) != 'running':
+                raise Failure(f'{model.name} is {state}, not ready. See: modelctl logs {model.name}')
             code = run_harness(command + args, dict(os.environ, PI_CODING_AGENT_DIR=str(home)))
     finally:
         owned = marker(model).exists()
@@ -905,7 +930,7 @@ def use(harness, model, args, catalog):
                 if marker(model).exists():
                     Out.quiet = True
                     with contextlib.redirect_stdout(sys.stderr):
-                        stop(model)
+                        stop(model, sys.stderr)
     return code
 
 
@@ -973,7 +998,7 @@ def show_running(as_json):
                   f'{s["rss"] / GIB:.0f} GiB  {elapsed(s["age"])}')
     if rows:
         name, pick = rows[0]['name'], catalog.by_name[rows[0]['id']]
-        offers = pick.entry.get('harness', {}).get('supported', [])
+        offers = [h for h in HARNESSES if pick.supports(h)]
         hints = [f'modelctl use {offers[0]} {name}'] if offers else []
         print('\nNext: ' + ' · '.join(hints + [f'modelctl logs {name}', f'modelctl stop {name}']))
     else:
@@ -1111,9 +1136,7 @@ def complete(scope, aliases):
     sys.stdout.write(output)
     shown = {line.split('\t')[0] for line in output.splitlines()}
     for model in Catalog().models:
-        if model.data:
-            if scope in HARNESSES and scope not in model.entry.get('harness', {}).get('supported', []):
-                continue
+        if model.id not in shown and (model.supports(scope) if scope in HARNESSES else model.data):
             print(f'{model.id}\t{model.label}')
             shown.add(model.id)
         if aliases and model.alias and model.id in shown:
@@ -1175,6 +1198,8 @@ def main(argv):
     if command in ('run', 'logs', 'path', 'endpoint', 'omp', 'dsh', '__run'):
         catalog = Catalog()
         model = catalog.get(need(args))
+        if command == 'omp' and model.supports('omp'):
+            return use('omp', model, args, catalog)
         if not model.data:
             if command == 'omp':
                 check_directory()
@@ -1206,8 +1231,6 @@ def main(argv):
             print(json.dumps(dict(id=model.id, base_url=model.base_url, api_model=model.api,
                                   context=model.context, output=model.output), indent=2)
                   if flags['--json'] else model.base_url)
-        elif command == 'omp':
-            return use('omp', model, args, catalog)
         elif command == 'dsh':
             raise Failure(f'{model.name} is not set up for dsh yet.', 2)
         return 0

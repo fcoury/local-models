@@ -11,6 +11,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 MODEL = 'qwen3.8-flash-next-ud-q4-k-xl'
+FLASH = 'qwen3.8-flash-next-iq-mlx-4.7bpw'
 sys.dont_write_bytecode = True
 
 with tempfile.TemporaryDirectory() as temp:
@@ -35,9 +36,10 @@ with tempfile.TemporaryDirectory() as temp:
     for scope in ('all', 'models', 'runnable', 'services', 'omp'):
         old = run('__complete', scope, script='modelctl-legacy').stdout
         new = run('__complete', scope).stdout
-        assert new.startswith(old) and new[len(old):].split('\t')[0] == MODEL, scope
+        added = [l.split('\t')[0] for l in new[len(old):].splitlines()]
+        assert new.startswith(old) and added == ([FLASH] if scope == 'omp' else []) + [MODEL], scope
     assert run('__complete', 'bogus').returncode == 2
-    assert [l.split('\t')[0] for l in run('__names', 'pi').stdout.splitlines()] == [MODEL, 'flash-ud']
+    assert [l.split('\t')[0] for l in run('__names', 'pi').stdout.splitlines()] == [FLASH, 'flash', MODEL, 'flash-ud']
     names = [l.split('\t')[0] for l in run('__names', 'services').stdout.splitlines()]
     assert {'flash', 'flash-ud', 'deepseek', MODEL} <= set(names)
 
@@ -49,7 +51,7 @@ with tempfile.TemporaryDirectory() as temp:
     typo = run('start', 'flsh')
     assert typo.returncode == 2 and 'Unknown model: flsh. Did you mean flash' in typo.stderr
     for args in (['bogus'], ['start'], ['use'], ['use', 'vim', 'flash-ud'], ['list', 'extra'],
-                 ['use', 'pi', 'flash'], ['dsh', 'flash-ud'], ['stop', 'minimax-music3']):
+                 ['use', 'pi', 'deepseek'], ['use', 'omp', 'deepseek'], ['dsh', 'flash-ud'], ['stop', 'minimax-music3']):
         result = run(*args)
         assert result.returncode == 2 and 'Traceback' not in result.stderr, (args, result)
 
@@ -139,6 +141,16 @@ with tempfile.TemporaryDirectory() as temp:
     assert settings['theme'] == 'mine' and settings['defaultThinkingLevel'] == 'low'
     assert json.loads((home / '.pi/agent/settings.json').read_text())['defaultProvider'] == 'strata'
     assert omp_home != pi_home and str(omp_home).startswith(str(state))
+
+    # A legacy-launched profile opts in with a harness table and caps output below its server limit.
+    row = [FLASH, 'Flash', 'service', '18434', 'flash-api', '65536', '32768', '/x']
+    entry = next(m for m in ctl.tomllib.loads((ROOT / 'models.toml').read_text())['models'] if m['id'] == FLASH)
+    flash = ctl.Model(entry, row)
+    assert not flash.data and flash.supports('pi') and flash.supports('omp')
+    flash_home, _, _ = ctl.prepare_pi(flash)
+    config = json.loads((flash_home / 'models.json').read_text())['providers']['modelctl']
+    assert config['baseUrl'].endswith(':18434/v1') and flash_home != pi_home
+    assert config['models'][0]['maxTokens'] == 16384 and 'image' in config['models'][0]['input']
 
     # Harnesses are refused inside the model store, including through a symlink.
     link = temp / 'link'

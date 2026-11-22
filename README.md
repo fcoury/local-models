@@ -70,7 +70,8 @@ IQ4 bundles were also [removed on 2026-10-25](benchmarks/qwen-model-retirement.m
 `bin/modelctl` is the command. Models whose `models.toml` entry has a
 `[models.launch]` table are started from that data. All other profiles still
 live in `bin/modelctl-legacy`, which the command calls; migrate them one at a
-time. `alias` gives a model a short name: `flash`, `flash-ud` and `deepseek`.
+time. A legacy profile with a `[models.harness]` table also works with
+`modelctl use`. `alias` gives a model a short name: `flash`, `flash-ud` and `deepseek`.
 
 `modelctl use` writes an isolated harness configuration per model under
 `~/Library/Application Support/local-models/harness` and links your own

@@ -29,3 +29,14 @@ with memory pressure normal. Short solo probe: 34.0 tok/s generation.
 Not compared with the iQ-MLX build. Compaction, images and long sessions were
 not tested. `qwen3.8-27b`, `qwen3.8-27b-fixed-v22-4` and
 `muse-glimmer-30b-server` still use whichever `llama-server` is on PATH.
+
+## Flash iQ-MLX harness setup (same day)
+`flash` (mlx-serve 26.11.1, launch settings unchanged) was enabled for
+`modelctl use`. It honors per-request `reasoning_effort`; the default is off,
+and `high` renders the same prompt length as `xhigh`. OMP and Pi each passed the file-read task at off,
+low, medium and xhigh. An image probe and two concurrent 45,022-token requests
+passed (36s and 65s). Harness output is capped at 16,384 tokens so a request
+fits beside a compacted 64K context.
+
+In a new agent directory OMP first sends eight small skill-summary requests in
+the background. They are cached later and explain the initial extra traffic.
