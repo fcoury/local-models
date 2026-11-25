@@ -11,6 +11,8 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 MODEL = 'qwen3.8-flash-next-ud-q4-k-xl'
+INKLING = 'inkling-2-mini-mlx-8bit'
+BONSAI = 'ternary-bonsai-2.5-27b-pq2-mtp'
 FLASH = 'qwen3.8-flash-next-iq-mlx-4.7bpw'
 sys.dont_write_bytecode = True
 
@@ -37,9 +39,9 @@ with tempfile.TemporaryDirectory() as temp:
         old = run('__complete', scope, script='modelctl-legacy').stdout
         new = run('__complete', scope).stdout
         added = [l.split('\t')[0] for l in new[len(old):].splitlines()]
-        assert new.startswith(old) and added == ([FLASH] if scope == 'omp' else []) + [MODEL], scope
+        assert new.startswith(old) and added == ([FLASH, 'deepseek-v4.1-flash-sushi-stq-175-v2'] if scope == 'omp' else []) + [MODEL, INKLING, BONSAI], scope
     assert run('__complete', 'bogus').returncode == 2
-    assert [l.split('\t')[0] for l in run('__names', 'pi').stdout.splitlines()] == [FLASH, 'flash', MODEL, 'flash-ud']
+    assert [l.split('\t')[0] for l in run('__names', 'pi').stdout.splitlines()] == [FLASH, 'flash', 'deepseek-v4.1-flash-sushi-stq-175-v2', 'deepseek', MODEL, 'flash-ud', INKLING, 'inkling', BONSAI, 'bonsai']
     names = [l.split('\t')[0] for l in run('__names', 'services').stdout.splitlines()]
     assert {'flash', 'flash-ud', 'deepseek', MODEL} <= set(names)
 
@@ -51,7 +53,7 @@ with tempfile.TemporaryDirectory() as temp:
     typo = run('start', 'flsh')
     assert typo.returncode == 2 and 'Unknown model: flsh. Did you mean flash' in typo.stderr
     for args in (['bogus'], ['start'], ['use'], ['use', 'vim', 'flash-ud'], ['list', 'extra'],
-                 ['use', 'pi', 'deepseek'], ['use', 'omp', 'deepseek'], ['dsh', 'flash-ud'], ['stop', 'minimax-music3']):
+                 ['use', 'pi', 'hy4-flash-q4-k-m'], ['dsh', 'flash-ud'], ['stop', 'minimax-music3']):
         result = run(*args)
         assert result.returncode == 2 and 'Traceback' not in result.stderr, (args, result)
 
@@ -59,7 +61,7 @@ with tempfile.TemporaryDirectory() as temp:
     row = run('status', MODEL).stdout.split()
     assert row[0] == MODEL and row[1] in ('running', 'stopped', 'external', 'unverified'), row
     rows = json.loads(run('list', '--json').stdout)
-    assert len(rows) == 30 and len({r['name'] for r in rows}) == 30
+    assert len(rows) == 32 and len({r['name'] for r in rows}) == 32
 
     # Load the module against a tiny fake store to test verification and generated config.
     files = []
@@ -92,6 +94,15 @@ with tempfile.TemporaryDirectory() as temp:
     assert command[command.index('--parallel') + 1] == '2' and '--no-kv-unified' in command
     assert json.loads(command[-1]) == {'reasoning_effort': 'medium'}
     assert sum(f['size'] for f in real.manifest['files']) == entry['bytes']
+    # mlx-serve profiles load a directory; their files are checked inside it.
+    inkling = ctl.Model(next(m for m in ctl.tomllib.loads((ROOT / 'models.toml').read_text())['models']
+                             if m['id'] == INKLING))
+    command = inkling.command()
+    assert command[:3] == [str(inkling.binary), '--model', str(inkling.path)] and inkling.folder == inkling.path
+    assert command[command.index('--host') + 1] == '127.0.0.1'
+    assert inkling.api == inkling.path.name and inkling.max_output <= inkling.entry['harness']['reserve_tokens']
+    assert real.folder == real.path.parent
+    assert sum(f['size'] for f in inkling.manifest['files']) == inkling.entry['bytes']
     model = ctl.Model(dict(entry, path='gguf/m/a.gguf', manifest=str(manifest),
                            runtime_path='runtime/llama-server',
                            runtime_sha256=hashlib.sha256(b'runtime').hexdigest()))
@@ -150,7 +161,36 @@ with tempfile.TemporaryDirectory() as temp:
     flash_home, _, _ = ctl.prepare_pi(flash)
     config = json.loads((flash_home / 'models.json').read_text())['providers']['modelctl']
     assert config['baseUrl'].endswith(':18434/v1') and flash_home != pi_home
-    assert config['models'][0]['maxTokens'] == 16384 and 'image' in config['models'][0]['input']
+    limits = entry['harness']
+    assert config['models'][0]['maxTokens'] == limits['max_output'] <= limits['reserve_tokens']
+    assert 'image' in config['models'][0]['input']
+
+    # Existing configs get a larger reserve with the cap, keep a still larger one, and keep other edits.
+    settings = json.loads((flash_home / 'settings.json').read_text())
+    flash_omp, _, _ = ctl.prepare_omp(flash)
+    for before, after in ((16384, limits['reserve_tokens']), (30000, 30000)):
+        settings['compaction'] = dict(enabled=False, reserveTokens=before, keepRecentTokens=5)
+        (flash_home / 'settings.json').write_text(json.dumps(settings))
+        (flash_omp / 'config.yml').write_text(
+            f'theme: mine\ncompaction:\n  keepRecentTokens: 5\n  reserveTokens: {before}\n')
+        ctl.prepare_pi(flash)
+        ctl.prepare_omp(flash)
+        assert json.loads((flash_home / 'settings.json').read_text())['compaction'] == dict(
+            enabled=False, reserveTokens=after, keepRecentTokens=5)
+        assert (flash_omp / 'config.yml').read_text() == (
+            f'theme: mine\ncompaction:\n  keepRecentTokens: 5\n  reserveTokens: {after}\n')
+
+    # DeepSeek offers max above xhigh.
+    row = ['deepseek-v4.1-flash-sushi-stq-175-v2', 'DeepSeek', 'service', '18352', 'ds-api', '65536', '32768', '/x']
+    entry = next(m for m in ctl.tomllib.loads((ROOT / 'models.toml').read_text())['models'] if m['id'] == row[0])
+    deep = ctl.Model(entry, row)
+    home, _, level = ctl.prepare_pi(deep)
+    levels = json.loads((home / 'models.json').read_text())['providers']['modelctl']['models'][0]['thinkingLevelMap']
+    assert levels['max'] == 'max' and levels['medium'] == 'medium' and levels['minimal'] is None and level == 'off'
+    home, _, _ = ctl.prepare_omp(deep)
+    config = json.loads((home / 'models.yml').read_text())['providers']['modelctl-deepseek']['models'][0]
+    assert config['thinking']['effortMap'] == {} and config['input'] == ['text', 'image']
+    assert config['thinking']['defaultLevel'] == 'low'
 
     # Harnesses are refused inside the model store, including through a symlink.
     link = temp / 'link'

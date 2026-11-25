@@ -36,7 +36,9 @@ def prepare(root, home, profile, model):
             apiKeyEnv='MODELCTL_DSH_API_KEY', baseURL=model['base_url'],
             thinking='enabled' if sushi else 'disabled', reasoningEffort='off',
             maxTokens=output, defaultContextWindow=context,
-            models=[dict(catalog, inputModalities=['text'])]))])
+            # Revision 2 runs with its 0.77 GiB vision encoder loaded.
+            models=[dict(catalog, inputModalities=['text', 'image']
+                         if model['id'] == 'deepseek-v4.1-flash-sushi-stq-175-v2' else ['text'])]))])
     else:
         compat = dict(supportsStore=False, supportsDeveloperRole=False, maxTokensField='max_tokens',
                       supportsReasoningEffort=True, thinkingFormat='qwen-chat-template' if qwen else 'openai')

@@ -395,7 +395,7 @@ id = "deepseek-v4.1-flash-sushi-stq-175-v2"
 alias = "deepseek"
 name = "DeepSeek V4.1 Flash 1017 Sushi STQ 1.75bpw revision 2.0"
 format = "Sushi STQ safetensors"
-runner = "Sushi 1.5.0"
+runner = "Sushi 1.7.3"
 path = "sushi/deepseek-v41-1017-stq-175-v2-89630812"
 port = 18352
 context = 65536
@@ -405,12 +405,23 @@ api_model = "deepseek-v41-1017-stq-175-v2-89630812"
 bytes = 332116976095
 source = "beamster/DeepSeek-V4.1-Flash-1017-Sushi-STQ-1.75bpw"
 source_revision = "89630812557263bb7a7582fb1f30455573511155"
-runtime_path = "~/models/runtime/sushi-v1.5.0/sushi-macos-arm64"
-runtime_commit = "75996eda01856c7902d9bb8e0f2c2191956012e3"
-runtime_sha256 = "d0c9243c052fe8cf667eb5473e739cf08ca8f70407ad87b1eb283daf2032690f"
-runtime_archive_sha256 = "8f232828c902d30921dc71fd778f2826aa376aaf7a684b8e7c24c9d11967f3ac"
+runtime_path = "~/models/runtime/sushi-v1.7.3/sushi-macos-arm64"
+runtime_commit = "fc2fd843c2931f7cac150cdc86bb3873de273458"
+runtime_sha256 = "b89bb5f1d0e7a4c7b1abbbf1db5be09e5b124824377d399261e4f99b3e19fa6d"
+runtime_archive_sha256 = "21cb50782f5dfcbc15e36019e320edf961cda63592bbbfb3a3a654f50fa5741a"
 quantization = "STQ PAIR1 routed experts at 1.75bpw; SPEC1 4-bit trunk, 6-bit head; pack revision 2.0"
-notes = "Separate from retained revision 1.0. 90 GiB target, DSpark, no vision. Full Aider Rust: 14/30 first try, 23/30 within two in 24m47s; all 46 attempts independently verified. Live DSH qualification pending."
+notes = "Separate from retained revision 1.0. 90 GiB target, DSpark, vision on since 2026-11-23 (0.77 GiB encoder). Runtime 1.7.3 since 2026-11-23; scored on 1.5.0, which stays installed. Full Aider Rust: 14/30 first try, 23/30 within two in 24m47s; all 46 attempts independently verified. Live DSH qualification pending."
+
+# Launched by modelctl-legacy; this table only enables modelctl use.
+# Sushi 1.7.3 accepts images, and thinking off, low, medium, high, xhigh and max.
+[models.harness]
+supported = ["omp", "pi"]
+thinking = ["low", "medium", "high", "xhigh", "max"]
+thinking_default = "off"
+vision = true
+max_output = 16384
+reserve_tokens = 16384
+keep_recent_tokens = 8192
 
 [[models]]
 id = "qwen3.8-27b-abliterated-oq8e-mtp"
@@ -456,8 +467,8 @@ supported = ["omp", "pi"]
 thinking = ["low", "medium", "xhigh"]
 thinking_default = "medium"
 vision = true
-max_output = 16384
-reserve_tokens = 16384
+max_output = 24576
+reserve_tokens = 24576
 keep_recent_tokens = 8192
 
 [[models]]
@@ -528,3 +539,87 @@ thinking = ["low", "medium", "xhigh"]
 thinking_default = "medium"
 reserve_tokens = 16384
 keep_recent_tokens = 8192
+
+[[models]]
+id = "inkling-2-mini-mlx-8bit"
+alias = "inkling"
+name = "Inkling 2 Mini 8-bit 128K (mlx-serve)"
+format = "MLX"
+runner = "mlx-serve 26.11.4-pre-release.1"
+path = "mlx/inkling/inkling-2-mini-8bit-cb7fa05"
+port = 18438
+context = 131072
+output = 24576
+status = "evaluating"
+api_model = "inkling-2-mini-8bit-cb7fa05"
+bytes = 18756646844
+manifest = "manifests/inkling-2-mini-mlx-8bit.json"
+source = "ddalcu/Inkling-2-Mini-MLX-8bit"
+source_revision = "cb7fa052a9bbafbbeb91750edc67046e7bacd4f1"
+runtime_path = "runtime/mlx-serve-v26.11.4-pre-release.1/mlx-serve-macos-arm64/mlx-serve"
+runtime_sha256 = "05983e1278d6253d3648ddaa2514ec2a2f73ff3f617d41412d18334759991392"
+quantization = "8-bit attention and head, release NVFP4/MXFP8 experts"
+vision = true
+mtp = true
+consumer = "Pi, OMP, and OpenAI-compatible clients"
+notes = "Pre-release runtime, separate from the one flash uses. Bundled block drafter on. Effort none still reasons. --reasoning-budget only hides thinking on this model, so output is capped to bound loops."
+
+[models.launch]
+engine = "mlx-serve"
+slots = 1
+memory_gib = 40
+startup_timeout = 300
+args = ["--no-pld", "--no-plugins", "--log-file", "off"]
+
+[models.harness]
+supported = ["omp", "pi"]
+thinking = ["minimal", "low", "medium", "high", "xhigh"]
+thinking_default = "low"
+reserve_tokens = 24576
+keep_recent_tokens = 16384
+
+[[models]]
+id = "ternary-bonsai-2.5-27b-pq2-mtp"
+alias = "bonsai"
+name = "Ternary Bonsai 2.5 27B PQ2_0 MTP 128K (PrismML llama.cpp)"
+format = "GGUF"
+runner = "PrismML llama.cpp prism-b12178-03ec600"
+path = "gguf/bonsai/ternary-bonsai-2.5-27b-28a7093/Ternary-Bonsai-2.5-27B-PQ2_0-mtp.gguf"
+port = 18440
+context = 131072
+output = 32768
+status = "evaluating"
+api_model = "ternary-bonsai-2.5-27b"
+bytes = 8423536069
+manifest = "manifests/ternary-bonsai-2.5-27b-pq2-mtp.json"
+source = "prism-ml/Ternary-Bonsai-2.5-27B-GGUF"
+source_revision = "28a7093cc25bc151cc2b284c5570f12ce343fdcf"
+runtime_path = "runtime/llama.cpp-prism-b12178-03ec600/source/build/bin/llama-server"
+runtime_commit = "03ec60072cdd32a03ae931969af62e57bfb0c8dc"
+runtime_sha256 = "781b86b0c69d4a8705cd859d73abac7bf9fc101ded560fce47fc799677856b5d"
+quantization = "Ternary weights, 1.76 bpw effective, packed 2-bit (PQ2_0), with MTP draft head"
+vision = true
+mtp = true
+consumer = "Pi, OMP, and OpenAI-compatible clients"
+notes = "Qwen3.8 27B ternary. Fork built without the web UI (static Metal). PrismML's released Metal MTP profile: about 50-60 tok/s decode with drafting, 27-29 without; prompt reading 460-570 tok/s, so a cold 32K prompt takes about 75 s. Low reasoning effort is not supported (behaves like xhigh)."
+
+[models.launch]
+engine = "llama.cpp"
+slots = 1
+memory_gib = 16
+startup_timeout = 300
+mmproj = "gguf/bonsai/ternary-bonsai-2.5-27b-28a7093/Ternary-Bonsai-2.5-27B-mmproj-BF16.gguf"
+# PrismML's Metal MTP profile and the card's thinking-mode sampling.
+args = ["-ngl", "99", "-fa", "on", "--jinja", "--no-webui",
+        "--spec-type", "draft-mtp", "--spec-draft-n-min", "0", "--spec-draft-n-max", "1", "--spec-draft-p-min", "0.6",
+        "--temp", "1.0", "--top-p", "0.95", "--top-k", "20", "--min-p", "0",
+        "--chat-template-kwargs", "{\"reasoning_effort\":\"medium\"}"]
+
+[models.harness]
+supported = ["omp", "pi"]
+thinking = ["medium", "xhigh"]
+thinking_default = "medium"
+vision = true
+max_output = 32768
+reserve_tokens = 32768
+keep_recent_tokens = 16384

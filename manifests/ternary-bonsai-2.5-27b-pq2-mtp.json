@@ -1,0 +1,36 @@
+{
+  "repo": "prism-ml/Ternary-Bonsai-2.5-27B-GGUF",
+  "revision": "28a7093cc25bc151cc2b284c5570f12ce343fdcf",
+  "files": [
+    {
+      "path": "Ternary-Bonsai-2.5-27B-PQ2_0-mtp.gguf",
+      "size": 7492338944,
+      "sha256": "ededc9fc0a8a6a8dd30914d107b2d2ce7674d789f1d05a1a481f240609aa6c23"
+    },
+    {
+      "path": "Ternary-Bonsai-2.5-27B-mmproj-BF16.gguf",
+      "size": 931145856,
+      "sha256": "e287342d92332fa3577ed1d42e921dac9370c08da58ba9337fa450f6cc76cfd7"
+    },
+    {
+      "path": "LICENSE",
+      "size": 10174,
+      "sha256": "69849221bfb90053de2134ef5e6d540287b4b98062326492f1f96f5da685524b"
+    },
+    {
+      "path": "NOTICE.txt",
+      "size": 665,
+      "sha256": "b0b9b627d531fbd3d9d39946ffa61dd386d94878dac8f809daacb8c1d6227196"
+    },
+    {
+      "path": "README.md",
+      "size": 35887,
+      "sha256": "85d142d04266850043e5d27bcf692e49c83f5ababa9b62b55500e690737162b3"
+    },
+    {
+      "path": "presets/llama.cpp/mtp-metal.json",
+      "size": 4543,
+      "sha256": "6fac325b70d80b1f5dc59526068987d1a8bbd7657193fa2d72ae4c12c92df108"
+    }
+  ]
+}

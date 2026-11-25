@@ -249,6 +249,11 @@ class Model:
         return json.loads((ROOT / self.entry['manifest']).read_text())
 
     @property
+    def folder(self):
+        # mlx-serve loads a directory; llama.cpp loads a file inside one.
+        return self.path if self.launch['engine'] == 'mlx-serve' else self.path.parent
+
+    @property
     def binary(self):
         return MODEL_HOME / self.entry['runtime_path']
 
@@ -258,6 +263,10 @@ class Model:
 
     def command(self):
         launch = self.launch
+        if launch['engine'] == 'mlx-serve':
+            return [str(self.binary), '--model', str(self.path), '--serve', '--host', '127.0.0.1',
+                    '--port', str(self.port), '--ctx-size', str(self.context),
+                    '--max-tokens', str(self.output), *launch['args']]
         if launch['engine'] != 'llama.cpp':
             raise Failure(f'{self.name} uses unsupported engine {launch["engine"]}.')
         command = [str(self.binary), '--model', str(self.path), '--alias', self.api,
@@ -388,7 +397,7 @@ def file_problems(model):
     """Cheap check: every pinned file is present at its pinned size and fully transferred."""
     problems = []
     for row in model.manifest['files']:
-        path = model.path.parent / row['path']
+        path = model.folder / row['path']
         if not path.is_file():
             problems.append(f'missing {short_path(path)}')
         elif path.stat().st_size != row['size']:
@@ -427,7 +436,7 @@ def receipt_ok(model):
     return (receipt.get('revision') == model.manifest['revision']
             and receipt.get('sha256') == expected
             and receipt.get('signature') == {
-                name: signature(model.path.parent / name) for name in expected})
+                name: signature(model.folder / name) for name in expected})
 
 
 def is_ready(model):
@@ -456,7 +465,7 @@ def doctor(model):
         raise Failure(f'runtime SHA-256 mismatch: {model.binary}')
     expected, signatures = {}, {}
     for row in model.manifest['files']:
-        path = model.path.parent / row['path']
+        path = model.folder / row['path']
         before = signature(path)
         with spinner(f'Hashing {row["path"]}') as tick, \
                 concurrent.futures.ThreadPoolExecutor(1) as pool:
@@ -836,7 +845,10 @@ def prepare_omp(model):
         'models': [{
             'id': model.api, 'name': model.label, 'reasoning': True,
             'thinking': {'mode': 'effort', 'efforts': settings['thinking'],
-                         'defaultLevel': settings['thinking_default']},
+                         # omp's default must be an effort; off is passed with --thinking.
+                         'defaultLevel': (settings['thinking_default'] if settings['thinking_default']
+                                          in settings['thinking'] else settings['thinking'][0]),
+                         'effortMap': settings.get('effort_map', {})},
             'input': ['text', 'image'] if model.vision else ['text'],
             'supportsTools': True, 'contextWindow': model.context, 'maxTokens': model.max_output,
             'cost': {'input': 0, 'output': 0, 'cacheRead': 0, 'cacheWrite': 0},
@@ -848,6 +860,13 @@ def prepare_omp(model):
         config.write_text('setupVersion: 3\ncompaction:\n'
                           f'  keepRecentTokens: {settings["keep_recent_tokens"]}\n'
                           f'  reserveTokens: {settings["reserve_tokens"]}\n')
+    else:
+        # A reserve smaller than the output cap lets a reply run past the context.
+        text = config.read_text()
+        raised = re.sub(r'(?m)^(\s+reserveTokens:\s*)(\d+)',
+                        lambda m: m[1] + str(max(int(m[2]), settings['reserve_tokens'])), text)
+        if raised != text:
+            config.write_text(raised)
     link_shared(Path.home() / '.omp/agent', home, ('extensions', 'skills', 'prompts', 'AGENTS.md'))
     return home, ['omp', '--model', f'{provider}/{model.api}'], settings['thinking_default']
 
@@ -856,7 +875,7 @@ def prepare_pi(model):
     home = STATE / f'harness/pi/{model.id}'
     home.mkdir(parents=True, exist_ok=True)
     settings = model.entry['harness']
-    levels = {level: level if level in settings['thinking'] else None
+    levels = {level: settings.get('effort_map', {}).get(level, level) if level in settings['thinking'] else None
               for level in ('minimal', 'low', 'medium', 'high', 'xhigh', 'max')}
     write_json(home / 'models.json', {'providers': {'modelctl': {
         'baseUrl': model.base_url, 'api': 'openai-completions', 'apiKey': 'local',
@@ -874,6 +893,9 @@ def prepare_pi(model):
     config.setdefault('defaultThinkingLevel', settings['thinking_default'])
     config.setdefault('compaction', {'enabled': True, 'reserveTokens': settings['reserve_tokens'],
                                      'keepRecentTokens': settings['keep_recent_tokens']})
+    if 'reserveTokens' in config['compaction']:
+        config['compaction']['reserveTokens'] = max(config['compaction']['reserveTokens'],
+                                                    settings['reserve_tokens'])
     write_json(path, config)
     link_shared(Path.home() / '.pi/agent', home, ('extensions', 'skills', 'prompts', 'themes', 'AGENTS.md'))
     return home, ['pi', '--provider', 'modelctl', '--model', model.api], settings['thinking_default']
