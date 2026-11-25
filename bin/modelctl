@@ -154,21 +154,32 @@ def context_text(count):
     return f'{count // 1024}K' if count else '-'
 
 
-def table(rows, header, flex=None):
-    """Aligned columns; column `flex` shrinks to fit a terminal."""
+def table(rows, header, fit=(), right=()):
+    """Aligned columns that fit a terminal; `right` columns align right.
+
+    `fit` lists (column, least) steps tried in order while a line is too wide:
+    shrink the column to `least` characters, or drop it when `least` is None.
+    """
     widths = [max(len(str(r[i])) for r in [header, *rows]) for i in range(len(header))]
-    if flex is not None and sys.stdout.isatty():
-        spare = shutil.get_terminal_size().columns - sum(widths) - 2 * (len(widths) - 1)
-        if spare < 0:
-            widths[flex] = max(12, widths[flex] + spare)
+    keep = list(range(len(header)))
+    if sys.stdout.isatty():
+        room = shutil.get_terminal_size().columns
+        for i, least in fit:
+            over = sum(widths[k] for k in keep) + 2 * (len(keep) - 1) - room
+            if over <= 0:
+                break
+            if least is None:
+                keep.remove(i)
+            else:
+                widths[i] = max(min(least, widths[i]), widths[i] - over)
 
     def line(row):
         cells = []
-        for i, cell in enumerate(row):
-            text = str(cell)
+        for i in keep:
+            text = str(row[i])
             if len(text) > widths[i]:
                 text = text[:widths[i] - 1] + '…'
-            cells.append(text.ljust(widths[i]))
+            cells.append(text.rjust(widths[i]) if i in right else text.ljust(widths[i]))
         return '  '.join(cells).rstrip()
     print(paint(line(header), '2'))
     return [line(row) for row in rows]
@@ -987,7 +998,8 @@ def show_running(as_json):
                   f'{r["rss"] / GIB:.0f} GiB' if r['rss'] else '-',
                   elapsed(r['uptime']) if r['uptime'] is not None else '-'] for r in rows]
         for row, line in zip(rows, table(
-                cells, ['NAME', 'MODEL', 'STATE', 'PORT', 'CONTEXT', 'MEMORY', 'UPTIME'], flex=1)):
+                cells, ['NAME', 'MODEL', 'STATE', 'PORT', 'CONTEXT', 'MEMORY', 'UPTIME'],
+                fit=[(1, 12), (1, None), (3, None), (0, 16)], right={4, 5})):
             print(decorate(line, row['state']))
     else:
         print('No models running.')
@@ -1025,7 +1037,8 @@ def show_list(show_all, as_json, refresh):
     cells = [[r['name'], r['title'], r['runtime'], context_text(r['context']),
               size_text(r['size']), state_text(r['state'])] for r in shown]
     for row, line in zip(shown, table(
-            cells, ['NAME', 'MODEL', 'RUNTIME', 'CTX', 'SIZE', 'STATE'], flex=1)):
+            cells, ['NAME', 'MODEL', 'RUNTIME', 'CTX', 'SIZE', 'STATE'],
+            fit=[(1, 12), (2, 10), (1, None), (2, None), (0, 16)], right={3, 4})):
         print(decorate(line, row['state']))
     hidden = len(rows) - len(shown)
     if hidden:
