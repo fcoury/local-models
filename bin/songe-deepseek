@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Pi on deepseek through Songe's proxy; see bin/songe-deepseek.py.
+set -euo pipefail
+songe="$HOME/Library/Application Support/local-models/songe/source"
+[[ -x "$songe/.venv/bin/python" ]] || {
+  echo "Songe is not installed at $songe (pinned checkout, then: uv sync --locked --no-dev)." >&2; exit 1; }
+here="$(dirname "$(/usr/bin/python3 -c 'import os,sys;print(os.path.realpath(sys.argv[1]))' "${BASH_SOURCE[0]}")")"
+HF_HUB_OFFLINE=1 exec "$songe/.venv/bin/python" -I "$here/songe-deepseek.py" "$@"
