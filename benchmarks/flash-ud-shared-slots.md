@@ -38,5 +38,11 @@ low, medium and xhigh. An image probe and two concurrent 45,022-token requests
 passed (36s and 65s). Harness output is capped at 16,384 tokens so a request
 fits beside a compacted 64K context.
 
+The cap was then raised to 24,576, with an equal reserve (compaction at 40,960).
+In the first real OMP task at medium, mlx-serve allowed 8,192 thinking tokens and
+the remaining ~8K could not hold a one-file three.js demo; the write was cut off
+at 16,384 and OMP recovered by writing in chunks. The new limits are checked
+offline only; no large write has been rerun.
+
 In a new agent directory OMP first sends eight small skill-summary requests in
 the background. They are cached later and explain the initial extra traffic.
